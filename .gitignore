@@ -3,3 +3,8 @@
 .env.*
 node_modules
 *_backup_*.json
+
+# Never commit credentials
+*pw*
+*password*
+*secret*
