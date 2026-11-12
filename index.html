@@ -118,7 +118,7 @@
           <h1 class="text-lg font-extrabold tracking-wide uppercase" id="loginCompany">Payroll System</h1>
           <p class="text-xs opacity-90">Contract Labour Payroll &middot; Sign in to continue</p>
         </div>
-        <form onsubmit="doLogin(event)" class="p-6 space-y-4">
+        <form id="loginForm" onsubmit="doLogin(event)" class="p-6 space-y-4">
           <div><label class="block text-xs font-bold text-slate-600 mb-1">Username</label>
             <div class="relative"><i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-400"></i>
             <input id="loginUser" required autocomplete="username" class="w-full bg-white/90 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter username"></div></div>
@@ -126,7 +126,7 @@
             <div class="relative"><i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-400"></i>
             <input id="loginPass" type="password" required autocomplete="current-password" class="w-full bg-white/90 border border-slate-200 rounded-xl pl-10 pr-3 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter password">
             <button type="button" onclick="const p=document.getElementById('loginPass');p.type=p.type==='password'?'text':'password'" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-eye"></i></button></div></div>
-          <p id="loginErr" class="hidden text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2"><i class="fa-solid fa-circle-exclamation mr-1"></i>Invalid username or password</p>
+          <p id="loginErr" class="hidden text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2"><i class="fa-solid fa-circle-exclamation mr-1"></i><span id="loginErrText">Invalid username or password</span></p>
           <button type="submit" class="w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-lg transition"><i class="fa-solid fa-right-to-bracket mr-2"></i>Login</button>
           <p class="text-[10px] text-center text-slate-400">&copy; Mercury Group of Contractors</p>
         </form>
@@ -240,6 +240,7 @@
                         <div class="hidden sm:block text-left text-[11px]">
                             <p class="font-bold text-slate-800" id="hdrUserName">Mercury Admin</p>
                             <p class="text-slate-500" id="hdrUserRole">Payroll Supervisor</p>
+                            <p id="cloudStatus" class="text-[10px] font-semibold text-emerald-600"></p>
                         </div>
                         <button onclick="doLogout()" title="Logout" class="ml-2 w-9 h-9 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white transition"><i class="fa-solid fa-power-off"></i></button>
                     </div>
@@ -938,6 +939,9 @@
     </div>
     <div id="printablePaySlip" class="print-only"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
+    <script src="cloud.js"></script>
     <script>
         let settings = {
             companyName: 'Mercury Group of Contractors',
@@ -1062,7 +1066,6 @@
         }
 
         // ================= LOGIN & USER ROLES =================
-        const USERS_KEY = 'mercury_payroll_users_v1';
         const ROLES = {
             vendor:     { label: 'Software Admin', tabs: ['dashboard','contractors','employees','resigned','advances','attendance','payroll','reports','clientadmin','softwareadmin'] },
             admin:      { label: 'Admin',                    tabs: ['dashboard','contractors','employees','resigned','advances','attendance','payroll','reports','clientadmin'] },
@@ -1070,36 +1073,49 @@
             operator:   { label: 'Attendance Operator',      tabs: ['dashboard','attendance','reports'] }
         };
         let currentUser = null;
-        function getUsers() {
-            try { const u = JSON.parse(localStorage.getItem(USERS_KEY)); if (u && u.length) {
-                let ch = false; u.forEach(x => { if (x.u === 'vendor') { x.u = 'softadmin'; if (x.p === 'vendor@123') x.p = 'soft@123'; ch = true; } if (x.name === 'Software Vendor') { x.name = 'Software Admin'; ch = true; } });
-                if (ch) localStorage.setItem(USERS_KEY, JSON.stringify(u)); return u; } } catch (e) {}
-            const def = [
-                { u: 'softadmin', p: 'soft@123', name: 'Software Admin', role: 'vendor', active: true },
-                { u: 'admin', p: 'admin@123', name: 'Mercury Admin', role: 'admin', active: true },
-                { u: 'supervisor', p: 'super@123', name: 'Payroll Supervisor', role: 'supervisor', active: true },
-                { u: 'operator', p: 'oper@123', name: 'Attendance Operator', role: 'operator', active: true }
-            ];
-            localStorage.setItem(USERS_KEY, JSON.stringify(def)); return def;
+        let userList = [];   // login users from Supabase (admins see everyone, others only themselves)
+        function getUsers() { return userList; }
+        function toUser(p) { return { id: p.id, u: p.username, name: p.full_name || p.username, role: p.role, active: p.active }; }
+        async function refreshUsers() {
+            if (!currentUser) return;
+            try { userList = (await Cloud.listProfiles()).map(toUser); }
+            catch (e) { showToast('Could not load users: ' + e.message, 'danger'); }
+            renderUserTable();
         }
-        function saveUsers(list) { localStorage.setItem(USERS_KEY, JSON.stringify(list)); }
+        function loginError(msg) {
+            document.getElementById('loginErrText').textContent = msg;
+            document.getElementById('loginErr').classList.toggle('hidden', !msg);
+        }
+        function loginBusy(on) {
+            const b = document.querySelector('#loginForm button[type=submit]'); if (!b) return;
+            if (!b.dataset.html) b.dataset.html = b.innerHTML;
+            b.disabled = on; b.innerHTML = on ? '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Signing in…' : b.dataset.html;
+        }
 
-        function doLogin(e) {
+        async function doLogin(e) {
             e.preventDefault();
+            loginError('');
             const un = document.getElementById('loginUser').value.trim().toLowerCase();
             const pw = document.getElementById('loginPass').value;
-            const user = getUsers().find(x => x.u.toLowerCase() === un && x.p === pw && x.active !== false);
-            if (!user) { document.getElementById('loginErr').classList.remove('hidden'); return; }
-            sessionStorage.setItem('mercury_session', user.u);
-            startSession(user);
+            loginBusy(true);
+            try { await enterApp(await Cloud.signIn(un, pw)); }
+            catch (ex) { loginError(ex.message || 'Invalid username or password'); }
+            finally { loginBusy(false); }
         }
-        function doLogout() {
+        // After a successful login (or a remembered session): load data from Supabase, then open the app.
+        async function enterApp(p) {
+            if (!p) { await Cloud.signOut(); throw new Error('No user profile found for this login. Ask the admin to check your account.'); }
+            if (!p.active) { await Cloud.signOut(); throw new Error('Your account is not active yet. Ask the admin to activate it.'); }
+            await Cloud.loadAll();
+            bootApp();
+            startSession(toUser(p));
+            await refreshUsers();
+        }
+        async function doLogout() {
             if (typeof attEditMode !== 'undefined' && attEditMode) { showToast("Please Save or Cancel attendance first.", "danger"); return; }
-            sessionStorage.removeItem('mercury_session');
-            currentUser = null;
-            document.getElementById('loginPass').value = '';
-            document.getElementById('loginErr').classList.add('hidden');
-            document.getElementById('loginScreen').classList.remove('hidden');
+            if (Cloud.hasPending()) { showToast("Saving your changes… please wait a moment and try again.", "danger"); Cloud.flushAll(); return; }
+            await Cloud.signOut();
+            location.reload();   // clears all payroll data from this browser's memory
         }
         function startSession(user) {
             currentUser = user;
@@ -1129,7 +1145,7 @@
                 <td class="p-3">${x.active !== false ? '<span class="text-emerald-600 font-bold">Active</span>' : '<span class="text-rose-500 font-bold">Disabled</span>'}</td>
                 <td class="p-3">${locked ? '<span class="text-slate-400"><i class="fa-solid fa-lock"></i></span>' : `
                     <button onclick="userForm(${i})" class="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white mr-1"><i class="fa-solid fa-pen"></i> Edit / Password</button>
-                    ${x.u !== (currentUser && currentUser.u) ? `<button onclick="toggleUser(${i})" class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-500 hover:text-white">${x.active !== false ? 'Disable' : 'Enable'}</button>` : ''}`}</td></tr>`;
+                    ${x.id !== (currentUser && currentUser.id) ? `<button onclick="toggleUser(${i})" class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-500 hover:text-white">${x.active !== false ? 'Disable' : 'Enable'}</button>` : ''}`}</td></tr>`;
             }).join('');
         }
         function userForm(i) {
@@ -1144,25 +1160,42 @@
                 <div class="p-5 space-y-3">
                   <div><label class="text-xs font-semibold text-slate-600">Username</label><input id="uf_u" class="${ic}" value="${ex ? ex.u : ''}" ${ex ? 'readonly' : ''}></div>
                   <div><label class="text-xs font-semibold text-slate-600">Full Name</label><input id="uf_n" class="${ic}" value="${ex ? ex.name : ''}"></div>
-                  <div><label class="text-xs font-semibold text-slate-600">Role</label><select id="uf_r" class="${ic}" ${ex && ex.u === currentUser.u ? 'disabled' : ''}>${roleOpts}</select></div>
+                  <div><label class="text-xs font-semibold text-slate-600">Role</label><select id="uf_r" class="${ic}" ${ex && ex.id === currentUser.id ? 'disabled' : ''}>${roleOpts}</select></div>
                   <div><label class="text-xs font-semibold text-slate-600">${ex ? 'New Password (leave blank to keep)' : 'Password'}</label><input id="uf_p" type="password" class="${ic}"></div>
                   <div class="flex justify-end gap-2 pt-2"><button id="uf_c" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100">Cancel</button>
                   <button id="uf_s" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600">Save</button></div>
                 </div></div>`;
             document.body.appendChild(box);
             box.querySelector('#uf_c').onclick = () => box.remove();
-            box.querySelector('#uf_s').onclick = () => {
+            box.querySelector('#uf_s').onclick = async () => {
                 const u = box.querySelector('#uf_u').value.trim().toLowerCase(), n = box.querySelector('#uf_n').value.trim(), r = box.querySelector('#uf_r').value, p = box.querySelector('#uf_p').value;
                 if (!u || !n) return showToast("Username and Name are required.", "danger");
+                if (!ex && !/^[a-z0-9._-]{3,30}$/.test(u)) return showToast("Username: 3-30 letters, numbers, dot, dash or underscore (no spaces).", "danger");
                 if (!ex && list.some(x => x.u.toLowerCase() === u)) return showToast("Username already exists.", "danger");
-                if (!ex && p.length < 4) return showToast("Password must be at least 4 characters.", "danger");
-                if (ex && p && p.length < 4) return showToast("Password must be at least 4 characters.", "danger");
-                if (ex) { ex.name = n; if (!(ex.u === currentUser.u)) ex.role = r; if (p) ex.p = p; if (ex.u === currentUser.u) { currentUser = ex; document.getElementById('hdrUserName').textContent = n; } }
-                else list.push({ u, p, name: n, role: r, active: true });
-                saveUsers(list); renderUserTable(); box.remove(); showToast("User saved.", "success");
+                if (!ex && p.length < 6) return showToast("Password must be at least 6 characters.", "danger");
+                if (ex && p && p.length < 6) return showToast("Password must be at least 6 characters.", "danger");
+                const btn = box.querySelector('#uf_s'); btn.disabled = true; btn.textContent = 'Saving…';
+                try {
+                    if (ex) {
+                        const self = ex.id === currentUser.id;
+                        const patch = { full_name: n }; if (!self) patch.role = r;
+                        await Cloud.updateProfile(ex.id, patch);
+                        if (p) { if (self) await Cloud.changeOwnPassword(p); else await Cloud.adminUsers('set_password', { id: ex.id, password: p }); }
+                        if (self) { currentUser.name = n; document.getElementById('hdrUserName').textContent = n; }
+                    } else {
+                        await Cloud.adminUsers('create', { username: u, password: p, full_name: n, role: r });
+                    }
+                    await refreshUsers(); box.remove(); showToast("User saved.", "success");
+                } catch (err) {
+                    showToast(err.message, "danger"); btn.disabled = false; btn.textContent = 'Save';
+                }
             };
         }
-        function toggleUser(i) { const l = getUsers(); l[i].active = l[i].active === false; saveUsers(l); renderUserTable(); }
+        async function toggleUser(i) {
+            const x = getUsers()[i]; if (!x) return;
+            try { await Cloud.updateProfile(x.id, { active: x.active === false }); await refreshUsers(); }
+            catch (e) { showToast(e.message, 'danger'); }
+        }
 
         // ---- Login page logo (set in Software Admin, shown only on the login page) ----
         function applyLoginLogo() {
@@ -1199,7 +1232,16 @@
             settings.loginLogo = ''; saveSettingsToStorage(); applyLoginLogo(); showToast('Login page logo removed.', 'success');
         }
 
-        window.onload = function() {
+        window.onload = async function() {
+            try { const b = await Cloud.branding(); if (b.companyName) settings.companyName = b.companyName; if (b.loginLogo) settings.loginLogo = b.loginLogo; } catch (e) {}
+            applyLoginLogo();
+            document.getElementById('loginCompany').textContent = settings.companyName || 'Payroll System';
+            try { const p = await Cloud.currentProfile(); if (p) { loginBusy(true); await enterApp(p); } }
+            catch (e) { loginError(e.message); }
+            finally { loginBusy(false); }
+        };
+
+        function bootApp() {
             loadInitialData();
             applyLoginLogo();
             recalculateMonthMetrics();
@@ -1213,16 +1255,13 @@
             processPayroll();
             populateSlipDropdown();
             document.getElementById('loginCompany').textContent = settings.companyName || 'Payroll System';
-            const sess = sessionStorage.getItem('mercury_session');
-            const su = sess && getUsers().find(x => x.u === sess && x.active !== false);
-            if (su) startSession(su);
-        };
+        }
 
         function loadInitialData() {
-            const storedEmp = localStorage.getItem('mercury_contractors_employees_v3');
-            const storedCnt = localStorage.getItem('mercury_contractors_list_v3');
-            const storedAdv = localStorage.getItem('mercury_contractors_advances_v3');
-            const storedCfg = localStorage.getItem('mercury_contractors_settings_v3');
+            const storedEmp = store.getItem('mercury_contractors_employees_v3');
+            const storedCnt = store.getItem('mercury_contractors_list_v3');
+            const storedAdv = store.getItem('mercury_contractors_advances_v3');
+            const storedCfg = store.getItem('mercury_contractors_settings_v3');
             
             if (storedEmp) employees = JSON.parse(storedEmp);
             else { employees = []; saveEmployeesToStorage(); }
@@ -1289,10 +1328,10 @@
             handleMonthYearChange();
         }
 
-        function saveEmployeesToStorage() { employees.forEach(e => stashEmpMonth(e, settings.selectedMonthYear)); localStorage.setItem('mercury_contractors_employees_v3', JSON.stringify(employees)); }
-        function saveContractorsToStorage() { localStorage.setItem('mercury_contractors_list_v3', JSON.stringify(contractors)); }
-        function saveAdvancesToStorage() { localStorage.setItem('mercury_contractors_advances_v3', JSON.stringify(advances)); }
-        function saveSettingsToStorage() { localStorage.setItem('mercury_contractors_settings_v3', JSON.stringify(settings)); }
+        function saveEmployeesToStorage() { employees.forEach(e => stashEmpMonth(e, settings.selectedMonthYear)); store.setItem('mercury_contractors_employees_v3', JSON.stringify(employees)); }
+        function saveContractorsToStorage() { store.setItem('mercury_contractors_list_v3', JSON.stringify(contractors)); }
+        function saveAdvancesToStorage() { store.setItem('mercury_contractors_advances_v3', JSON.stringify(advances)); }
+        function saveSettingsToStorage() { store.setItem('mercury_contractors_settings_v3', JSON.stringify(settings)); }
 
         function getMonthMetrics(monthYearStr) {
             const [year, month] = monthYearStr.split('-').map(Number);
@@ -1315,7 +1354,7 @@
             settings.selectedMonthYear = newM;
             employees.forEach(e => loadEmpMonth(e, newM));                          // load new month
             calYear = Number(newM.split('-')[0]);
-            localStorage.setItem('mercury_contractors_employees_v3', JSON.stringify(employees));
+            store.setItem('mercury_contractors_employees_v3', JSON.stringify(employees));
             saveSettingsToStorage();
             recalculateMonthMetrics();
             renderDashboard();
@@ -1855,7 +1894,7 @@
                     if (code !== editId) {   // code changed: update linked advances & saved reports
                         advances.forEach(a => { if (a.empId === editId) a.empId = code; });
                         saveAdvancesToStorage();
-                        try { const h = getHistory(); Object.values(h).forEach(rows => rows.forEach(r => { if (r.id === editId) r.id = code; })); localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch (err) {}
+                        try { const h = getHistory(); Object.values(h).forEach(rows => rows.forEach(r => { if (r.id === editId) r.id = code; })); store.setItem(HIST_KEY, JSON.stringify(h)); } catch (err) {}
                     }
                     showToast("Employee updated successfully!", "success");
                 }
@@ -2286,7 +2325,7 @@
         // ================= REPORTS =================
         let reportType = 'month';
         const HIST_KEY = 'mercury_payroll_history_v3';
-        function getHistory() { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || {}; } catch(e) { return {}; } }
+        function getHistory() { try { return JSON.parse(store.getItem(HIST_KEY)) || {}; } catch(e) { return {}; } }
         function monthLabel(m) { const [y, mo] = m.split('-').map(Number); return new Date(y, mo - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' }); }
         function inr(n) { return '₹' + Math.round(n || 0).toLocaleString('en-IN'); }
 
@@ -2298,7 +2337,7 @@
                 return { id: emp.id, name: emp.name, unit: emp.unit, dept: emp.dept || 'Production', contractorId: emp.contractorId, contractor: cnt.name, contractorAddress: cnt.address || '',
                          salary: emp.salary, serviceRate: cntService(cnt), ...c };
             });
-            localStorage.setItem(HIST_KEY, JSON.stringify(h));
+            store.setItem(HIST_KEY, JSON.stringify(h));
         }
 
         function initReportFilters() {
@@ -2731,6 +2770,7 @@
                 contractors: contractors,
                 employees: employees,
                 advances: advances,
+                payrollHistory: getHistory(),
                 exportDate: new Date().toISOString()
             };
             const jsonStr = JSON.stringify(data, null, 2);
@@ -2762,6 +2802,7 @@
                         saveContractorsToStorage();
                         saveEmployeesToStorage();
                         saveAdvancesToStorage();
+                        if (data.payrollHistory) store.setItem(HIST_KEY, JSON.stringify(data.payrollHistory));
 
                         loadInitialData();
                         recalculateMonthMetrics();
@@ -2787,11 +2828,10 @@
             reader.readAsText(file);
         }
 
-        function resetSystemData() {
-            if (confirm("Warning: This will reset all employee data and restore factory settings. Continue?")) {
-                localStorage.clear();
-                location.reload();
-            }
+        async function resetSystemData() {
+            if (!confirm("Warning: This will DELETE all payroll data for every user (employees, attendance, contractors, advances, history) and restore factory settings. Download a backup first. Continue?")) return;
+            try { await Cloud.flushAll(); await Cloud.resetAll(); location.reload(); }
+            catch (e) { showToast('Reset failed: ' + e.message, 'danger'); }
         }
 
     </script>

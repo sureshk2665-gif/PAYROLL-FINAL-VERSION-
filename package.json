@@ -1,0 +1,9 @@
+{
+  "name": "mercury-payroll",
+  "private": true,
+  "description": "Mercury Group of Contractors payroll — static app + Vercel function for admin user management",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "2.49.4"
+  }
+}

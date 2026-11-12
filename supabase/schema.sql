@@ -57,6 +57,8 @@ language plpgsql security definer set search_path = public
 as $$
 declare r text := public.my_role();
 begin
+  -- No logged-in user = SQL Editor or the server-side admin function: allowed.
+  if auth.uid() is null then return new; end if;
   if (new.role is distinct from old.role or new.active is distinct from old.active) then
     if r not in ('vendor','admin') then
       raise exception 'Only an admin can change roles or activation';
@@ -108,6 +110,11 @@ create policy "app_data: active users insert" on public.app_data
   for insert to authenticated
   with check (public.my_role() is not null);
 
+drop policy if exists "app_data: admin deletes" on public.app_data;
+create policy "app_data: admin deletes" on public.app_data
+  for delete to authenticated
+  using (public.my_role() in ('vendor','admin'));
+
 drop policy if exists "app_data: active users update" on public.app_data;
 create policy "app_data: active users update" on public.app_data
   for update to authenticated
@@ -137,7 +144,12 @@ returns trigger
 language plpgsql security definer set search_path = public
 as $$
 begin
-  new.updated_at := now();
+  if tg_op = 'DELETE' then
+    insert into public.app_data_history (key, old_value, changed_by)
+    values (old.key, old.value, auth.uid());
+    return old;
+  end if;
+  new.updated_at := clock_timestamp();
   new.updated_by := auth.uid();
   if tg_op = 'UPDATE' and new.value is distinct from old.value then
     insert into public.app_data_history (key, old_value, changed_by)
@@ -149,15 +161,30 @@ $$;
 
 drop trigger if exists log_app_data_change on public.app_data;
 create trigger log_app_data_change
-  before insert or update on public.app_data
+  before insert or update or delete on public.app_data
   for each row execute function public.log_app_data_change();
 
 -- ---------------------------------------------------------------------
--- 4. Grants (automatic table exposure is OFF, so grant explicitly).
+-- 4. Login-page branding (company name + logo) — readable before login.
+-- ---------------------------------------------------------------------
+create or replace function public.public_branding()
+returns jsonb
+language sql stable security definer set search_path = public
+as $$
+  select coalesce(
+    (select jsonb_build_object('companyName', value->>'companyName', 'loginLogo', value->>'loginLogo')
+       from public.app_data where key = 'settings'),
+    '{}'::jsonb)
+$$;
+
+-- ---------------------------------------------------------------------
+-- 5. Grants (automatic table exposure is OFF, so grant explicitly).
 --    Nothing is granted to `anon`: logged-out visitors see no data.
 -- ---------------------------------------------------------------------
 revoke all on public.profiles, public.app_data, public.app_data_history from anon;
 grant select, update                 on public.profiles          to authenticated;
-grant select, insert, update         on public.app_data          to authenticated;
+grant select, insert, update, delete on public.app_data          to authenticated;
 grant select                         on public.app_data_history  to authenticated;
+revoke execute on function public.my_role(), public.public_branding() from public;
 grant execute on function public.my_role() to authenticated;
+grant execute on function public.public_branding() to anon, authenticated;
