@@ -188,3 +188,5 @@ grant select                         on public.app_data_history  to authenticate
 revoke execute on function public.my_role(), public.public_branding() from public;
 grant execute on function public.my_role() to authenticated;
 grant execute on function public.public_branding() to anon, authenticated;
+-- Server-side key (Vercel function api/admin-users.js) bypasses RLS but still needs table privileges.
+grant select, insert, update, delete on public.profiles, public.app_data, public.app_data_history to service_role;
