@@ -1656,30 +1656,14 @@
                 return;
             }
             populateAdvanceEmpDropdown();
-            advEditId = null; advMin = settings.selectedMonthYear;
-            document.getElementById('advModalTitle').innerText = 'Issue New Advance';
-            document.getElementById('formAdvEmpId').disabled = false;
+            advMin = settings.selectedMonthYear;
             document.getElementById('advanceModal').classList.remove('hidden');
             document.getElementById('advanceForm').reset();
             document.getElementById('formAdvMonths').value = 10;
             setMonthPicker('formAdvStartM', 'formAdvStartY', settings.selectedMonthYear, advMin);
             calculateEMIPreview();
         }
-        let advEditId = null, advMin = null;   // advMin = earliest start month allowed in the pop-up
-        function editAdvance(id) {
-            const a = advances.find(x => x.id === id); if (!a) return;
-            populateAdvanceEmpDropdown();
-            advEditId = id; advMin = advStart(a) < settings.selectedMonthYear ? advStart(a) : settings.selectedMonthYear;
-            document.getElementById('advModalTitle').innerText = 'Edit Advance';
-            document.getElementById('advanceForm').reset();
-            const sel = document.getElementById('formAdvEmpId'); sel.value = a.empId; sel.disabled = true;
-            document.getElementById('formAdvTotal').value = a.totalAmount;
-            document.getElementById('formAdvMonths').value = a.months;
-            document.getElementById('formAdvReason').value = a.reason || '';
-            setMonthPicker('formAdvStartM', 'formAdvStartY', advStart(a), advMin);
-            document.getElementById('advanceModal').classList.remove('hidden');
-            calculateEMIPreview();
-        }
+        let advMin = null;   // earliest start month allowed in the pop-up
 
         function closeAdvanceModal() {
             document.getElementById('advanceModal').classList.add('hidden');
@@ -1702,14 +1686,6 @@
             const monthlyEMI = Math.round(totalAmount / months + 1e-9);
             const startMonth = getMonthPicker('formAdvStartM', 'formAdvStartY');
             if (startMonth < advMin) return showToast(`Start month cannot be before ${monthLabel(advMin)}.`, 'danger');
-            if (advEditId) {
-                const a = advances.find(x => x.id === advEditId);
-                if (a) Object.assign(a, { totalAmount, months, monthlyEMI, reason, startMonth });
-                advEditId = null;
-                saveAdvancesToStorage(); closeAdvanceModal(); renderAdvancesList(); renderAttendanceList(); processPayroll(); renderDashboard();
-                return showToast('Advance updated.', 'success');
-            }
-
             const newAdv = {
                 startMonth,
                 skips: {},
@@ -1875,7 +1851,6 @@
                         <td class="p-4 text-center">${advStatusBadge(info)}</td>
                         <td class="p-4 text-center whitespace-nowrap">
                             ${['deducted', 'auto', 'manual'].includes(info.status) ? `<button onclick="toggleAdvanceSkip('${a.id}')" class="px-2 py-1 rounded-lg text-[10px] font-bold mr-1 ${info.status === 'manual' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-500 hover:text-white'}">${info.status === 'manual' ? 'Undo Skip' : 'Skip ' + monthLabel(settings.selectedMonthYear).split(' ')[0]}</button>` : ''}
-                            <button onclick="editAdvance('${a.id}')" title="Edit" class="text-blue-600 hover:text-blue-800 p-1"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="deleteAdvance('${a.id}')" title="Delete" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
