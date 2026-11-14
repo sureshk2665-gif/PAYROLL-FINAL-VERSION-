@@ -2132,7 +2132,7 @@
             showToast(`${emp.name}: Present ${emp.workedDays}, LOP ${emp.lopDays}`, "info");
         }
 
-        // ===== CANTEEN TOKEN PRICE (unit-wise; default for units without their own price) =====
+        // ===== CANTEEN TOKEN PRICE (unit-wise; a unit never saved starts at the old single price, 155) =====
         const CANTEEN_UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4'];
         function unitCanteenRate(unit) {
             const r = (settings.canteenRateByUnit || {})[unit];
@@ -2145,24 +2145,18 @@
             const row = (label, sub, id, val) => `<div class="flex items-center gap-3 px-4 py-2.5">
                 <div class="flex-1"><p class="text-sm font-semibold text-slate-800">${escHtml(label)}</p>${sub ? `<p class="text-[10px] text-slate-400">${sub}</p>` : ''}</div>
                 <span class="text-sm font-bold text-orange-700">₹</span>
-                <input type="number" min="0" step="0.5" data-unit="${id}" value="${val}" oninput="this.dataset.changed=1" class="${ic}">
+                <input type="number" min="0" step="0.5" data-unit="${id}" value="${val}" class="${ic}">
                 <span class="text-xs text-slate-500 w-12">/ token</span></div>`;
             box.innerHTML = CANTEEN_UNITS.map(u => {
                 const n = employees.filter(e => e.unit === u && isEmpActive(e)).length;
-                return row(u, `${n} active employee(s)${own[u] === undefined ? ' · using default price' : ''}`, u, unitCanteenRate(u));
-            }).join('') + `<div class="bg-slate-50 rounded-b-xl">${row('Default price', 'Used for any unit without its own price', '__default', settings.canteenTokenRate ?? 155)}</div>`;
+                return row(u, `${n} active employee(s)`, u, unitCanteenRate(u));
+            }).join('');
         }
         function saveCanteenRates() {
             const inputs = [...document.querySelectorAll('#canteenRateRows input[data-unit]')];
             for (const i of inputs) { if (i.value === '' || isNaN(parseFloat(i.value)) || parseFloat(i.value) < 0) return showToast('Enter a valid price (0 or more) for every row.', 'danger'); }
             const own = settings.canteenRateByUnit = settings.canteenRateByUnit || {};
-            const def = inputs.find(i => i.dataset.unit === '__default');
-            if (def) settings.canteenTokenRate = parseFloat(def.value);
-            inputs.filter(i => i.dataset.unit !== '__default').forEach(i => {
-                // a unit on the default price stays on it unless a price is typed in its box
-                if (own[i.dataset.unit] === undefined && !i.dataset.changed) return;
-                own[i.dataset.unit] = parseFloat(i.value);
-            });
+            inputs.forEach(i => { own[i.dataset.unit] = parseFloat(i.value); });   // every unit keeps its own price
             saveSettingsToStorage();
             renderCanteenRates(); renderAttendanceList(); processPayroll(); renderDashboard(); renderSelectedPaySlip();
             showToast('Canteen token prices saved.', 'success');
