@@ -449,7 +449,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <div title="Canteen price per token (fixed in Admin)" class="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1 text-xs whitespace-nowrap shrink-0">
-                                <i class="fa-solid fa-utensils text-orange-500"></i><b id="attCanteenRate" class="text-orange-700">Contractor-wise</b><span class="text-orange-700">token price</span>
+                                <i class="fa-solid fa-utensils text-orange-500"></i><b id="attCanteenRate" class="text-orange-700">Unit-wise</b><span class="text-orange-700">token price</span>
                             </div>
                             <div class="flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1 shrink-0">
                                 <i class="fa-solid fa-building text-sky-600 text-xs"></i>
@@ -622,13 +622,13 @@
                             <i class="fa-solid fa-database border-2 border-indigo-400 p-2.5 rounded-xl"></i>
                         </div>
 
-                    <!-- Canteen Token Price (contractor-wise) -->
+                    <!-- Canteen Token Price (unit-wise) -->
                     <div class="bg-white p-5 rounded-2xl border-2 border-orange-200 shadow-sm space-y-3">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center text-xl shadow shrink-0"><i class="fa-solid fa-utensils"></i></div>
                             <div class="flex-1">
-                                <h3 class="font-bold text-slate-800 text-base">Canteen Token Price (Contractor-wise)</h3>
-                                <p class="text-xs text-slate-500">Price per token for each contractor. Tokens per month are entered for each employee in Attendance. Deduction = Tokens × Contractor's Price.</p>
+                                <h3 class="font-bold text-slate-800 text-base">Canteen Token Price (Unit-wise)</h3>
+                                <p class="text-xs text-slate-500">Price per token for each unit. Tokens per month are entered for each employee in Attendance. Deduction = Tokens × Price of the employee's unit.</p>
                             </div>
                         </div>
                         <div id="canteenRateRows" class="divide-y divide-slate-100 border border-slate-100 rounded-xl"></div>
@@ -2001,7 +2001,7 @@
         // ATTENDANCE & OT LOGIC
         function renderAttendanceList() {
             const metrics = getMonthMetrics(settings.selectedMonthYear);
-            const cr = document.getElementById('attCanteenRate'); if (cr) cr.textContent = 'Contractor-wise';
+            const cr = document.getElementById('attCanteenRate'); if (cr) cr.textContent = 'Unit-wise';
             const tbody = document.getElementById('attendanceTableBody');
 
             if (employees.length === 0) {
@@ -2049,7 +2049,7 @@
             const cnt = contractors.find(c => c.id === emp.contractorId) || { paidHolidays: 0 };
             const worked = getWorkedDays(emp, metrics);
             const lop = Math.max(0, metrics.totalWorkDays - worked);
-            const cRate = cntCanteenRate(contractors.find(c => c.id === emp.contractorId));
+            const cRate = unitCanteenRate(emp.unit);
             const canteenAmt = (emp.canteenTokens || 0) * cRate;
             row.querySelector('[data-out="lop"]').innerHTML = `<span class="inline-block min-w-[3rem] px-3 py-1.5 rounded-lg font-extrabold ${lop > 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}">${lop}</span>`;
             row.querySelector('[data-out="adv"]').innerHTML = `₹${getEmployeeActiveEMI(emp.id).toLocaleString('en-IN')}<p class="text-[10px] text-orange-600 font-semibold">Canteen - ₹${canteenAmt.toLocaleString('en-IN')}${emp.canteenTokens ? ` (${emp.canteenTokens} × ₹${cRate})` : ''}</p>`;
@@ -2132,36 +2132,38 @@
             showToast(`${emp.name}: Present ${emp.workedDays}, LOP ${emp.lopDays}`, "info");
         }
 
-        // ===== CANTEEN TOKEN PRICE (contractor-wise; default for contractors without their own price) =====
-        function cntCanteenRate(cnt) {
-            const r = cnt && cnt.canteenRate;
+        // ===== CANTEEN TOKEN PRICE (unit-wise; default for units without their own price) =====
+        const CANTEEN_UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4'];
+        function unitCanteenRate(unit) {
+            const r = (settings.canteenRateByUnit || {})[unit];
             return (r === undefined || r === null || r === '') ? (settings.canteenTokenRate ?? 155) : Number(r) || 0;
         }
         function renderCanteenRates() {
             const box = document.getElementById('canteenRateRows'); if (!box) return;
+            const own = settings.canteenRateByUnit || {};
             const ic = 'w-28 bg-orange-50 border border-orange-300 text-orange-700 font-extrabold rounded-xl p-2 text-sm text-center outline-none focus:ring-2 focus:ring-orange-400';
             const row = (label, sub, id, val) => `<div class="flex items-center gap-3 px-4 py-2.5">
                 <div class="flex-1"><p class="text-sm font-semibold text-slate-800">${escHtml(label)}</p>${sub ? `<p class="text-[10px] text-slate-400">${sub}</p>` : ''}</div>
                 <span class="text-sm font-bold text-orange-700">₹</span>
-                <input type="number" min="0" step="0.5" data-cnt="${id}" value="${val}" oninput="this.dataset.changed=1" class="${ic}">
+                <input type="number" min="0" step="0.5" data-unit="${id}" value="${val}" oninput="this.dataset.changed=1" class="${ic}">
                 <span class="text-xs text-slate-500 w-12">/ token</span></div>`;
-            box.innerHTML = contractors.map(c => row(c.name, (c.canteenRate === undefined || c.canteenRate === null || c.canteenRate === '') ? 'Using default price' : '', c.id, cntCanteenRate(c))).join('')
-                + `<div class="bg-slate-50 rounded-b-xl">${row('Default price', 'Used for new contractors and any contractor without its own price', '__default', settings.canteenTokenRate ?? 155)}</div>`;
+            box.innerHTML = CANTEEN_UNITS.map(u => {
+                const n = employees.filter(e => e.unit === u && isEmpActive(e)).length;
+                return row(u, `${n} active employee(s)${own[u] === undefined ? ' · using default price' : ''}`, u, unitCanteenRate(u));
+            }).join('') + `<div class="bg-slate-50 rounded-b-xl">${row('Default price', 'Used for any unit without its own price', '__default', settings.canteenTokenRate ?? 155)}</div>`;
         }
         function saveCanteenRates() {
-            const inputs = [...document.querySelectorAll('#canteenRateRows input[data-cnt]')];
+            const inputs = [...document.querySelectorAll('#canteenRateRows input[data-unit]')];
             for (const i of inputs) { if (i.value === '' || isNaN(parseFloat(i.value)) || parseFloat(i.value) < 0) return showToast('Enter a valid price (0 or more) for every row.', 'danger'); }
-            const def = inputs.find(i => i.dataset.cnt === '__default');
+            const own = settings.canteenRateByUnit = settings.canteenRateByUnit || {};
+            const def = inputs.find(i => i.dataset.unit === '__default');
             if (def) settings.canteenTokenRate = parseFloat(def.value);
-            const hasOwn = c => !(c.canteenRate === undefined || c.canteenRate === null || c.canteenRate === '');
-            inputs.filter(i => i.dataset.cnt !== '__default').forEach(i => {
-                const c = contractors.find(x => x.id === i.dataset.cnt); if (!c) return;
-                const v = parseFloat(i.value);
-                // a contractor on the default price stays on it unless a different price is typed
-                if (!hasOwn(c) && !i.dataset.changed) return;
-                c.canteenRate = v;
+            inputs.filter(i => i.dataset.unit !== '__default').forEach(i => {
+                // a unit on the default price stays on it unless a price is typed in its box
+                if (own[i.dataset.unit] === undefined && !i.dataset.changed) return;
+                own[i.dataset.unit] = parseFloat(i.value);
             });
-            saveSettingsToStorage(); saveContractorsToStorage();
+            saveSettingsToStorage();
             renderCanteenRates(); renderAttendanceList(); processPayroll(); renderDashboard(); renderSelectedPaySlip();
             showToast('Canteen token prices saved.', 'success');
         }
@@ -2248,7 +2250,7 @@
 
             // Total Deductions includes PF, ESI, Tax, Late Deduction and Advance Deduction
             const canteenTokens = emp.canteenTokens || 0;
-            const canteenRate = cntCanteenRate(cnt);
+            const canteenRate = unitCanteenRate(emp.unit);
             const canteen = canteenTokens * canteenRate;
             // Round off each amount to rupee (0.50 and above -> next rupee), then total from rounded values
             const R = x => Math.round((x || 0) + 1e-9);
