@@ -471,7 +471,7 @@
                                         <th class="p-4">ID & Name</th>
                                         <th class="p-4">Unit & Contractor</th>
                                         <th class="p-4 text-center">Present Days ✎</th>
-                                        <th class="p-4 text-center">Late Mins ✎</th>
+                                        <th class="p-4 text-center">Late (H.MM) ✎</th>
                                         <th class="p-4 text-center">OT Hours ✎</th>
                                         <th class="p-4 text-center">Canteen Tokens ✎</th>
                                         <th class="p-4 text-center">LOP Days (Auto)</th>
@@ -1808,7 +1808,7 @@
                             <span class="inline-block px-2 py-0.5 text-[10px] bg-slate-100 text-slate-700 rounded font-medium">${cnt.name}</span>
                         </td>
                         <td class="p-3 font-semibold text-slate-700">₹${emp.salary.toLocaleString('en-IN')}<span class="text-[10px] text-slate-400"> /day</span></td>
-                        <td class="p-3 font-bold text-amber-700">₹${calc.otAmount.toLocaleString('en-IN')} (${emp.otHours || 0} hrs)</td>
+                        <td class="p-3 font-bold text-amber-700">₹${calc.otAmount.toLocaleString('en-IN')} (${calc.otHours} hrs)</td>
                         <td class="p-3 font-bold text-indigo-700">- ₹${calc.advanceEMI.toLocaleString('en-IN')}</td>
                         <td class="p-3 text-center text-emerald-600 font-bold">${calc.presentDays} / ${metrics.totalWorkDays}</td>
                         <td class="p-3 text-right font-extrabold text-teal-700">₹${calc.netPay.toLocaleString('en-IN')}</td>
@@ -1978,6 +1978,26 @@
             }
         }
 
+        // ===== LATE TIME FORMAT (H : MIN) =====
+        // "2.3" -> 2 H 03 MIN, "2.30" -> 2 H 30 MIN, "2:05" also accepted, "2" -> 2 H 00 MIN, "0.45" -> 45 MIN.
+        function parseHM(text) {
+            const t = String(text || '').trim().replace(/\s+/g, '');
+            if (t === '') return 0;
+            const m = t.match(/^(\d{1,3})(?:[.:](\d{1,2}))?$/);
+            if (!m) return NaN;
+            const h = parseInt(m[1], 10), mi = m[2] === undefined ? 0 : parseInt(m[2], 10);
+            if (mi > 59) return NaN;
+            return h * 60 + mi;
+        }
+        function fmtHM(mins) {
+            const t = Math.max(0, Math.round(mins || 0));
+            return `${Math.floor(t / 60)} H : ${String(t % 60).padStart(2, '0')} MIN`;
+        }
+        function editHM(mins) {
+            const t = Math.max(0, Math.round(mins || 0));
+            return t ? `${Math.floor(t / 60)}.${String(t % 60).padStart(2, '0')}` : '';
+        }
+
         // ATTENDANCE & OT LOGIC
         function renderAttendanceList() {
             const metrics = getMonthMetrics(settings.selectedMonthYear);
@@ -1993,6 +2013,12 @@
                     ${attEditMode ? '' : 'disabled'} onfocus="this.select()" onkeydown="attKey(event, this)" onchange="attChange(this)"
                     class="att-in w-20 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed bg-white border-2 border-${color}-300 text-${color}-700 rounded-lg p-1.5 text-center font-bold focus:ring-2 focus:ring-${color}-500 focus:border-${color}-500 outline-none">`;
 
+            // Late time: typed as H.MM (2.3 = 2 H 03 MIN, 2.30 = 2 H 30 MIN), stored as total minutes
+            const lateInp = emp =>
+                `<input type="text" inputmode="decimal" value="${fmtHM(emp.lateMinutes)}" data-emp="${emp.id}" data-col="1" data-field="lateMinutes" title="Type hours.minutes, e.g. 1.34 = 1 H : 34 MIN"
+                    ${attEditMode ? '' : 'disabled'} onfocus="this.value=editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes);this.defaultValue='';this.select()" onblur="if(this.value===editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes))this.value=fmtHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes)" onkeydown="attKey(event, this)" onchange="attChange(this)"
+                    class="att-in w-32 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed bg-white border-2 border-amber-300 text-amber-700 rounded-lg p-1.5 text-center font-bold text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">`;
+
             const uf = (document.getElementById('attUnitFilter') || {}).value || 'ALL';
             const list = employees.filter(e => (uf === 'ALL' || e.unit === uf) && isEmpActive(e));
             if (!list.length) { tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">No employees in ${uf}.</td></tr>`; return; }
@@ -2006,7 +2032,7 @@
                             <span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-semibold">${cnt.name}</span>
                         </td>
                         <td class="p-3">${inp(emp, 0, 'workedDays', getWorkedDays(emp, metrics), 0.5, 'emerald', metrics.totalDays)}</td>
-                        <td class="p-3">${inp(emp, 1, 'lateMinutes', emp.lateMinutes || 0, 5, 'amber')}</td>
+                        <td class="p-3">${lateInp(emp)}</td>
                         <td class="p-3">${inp(emp, 2, 'otHours', emp.otHours || 0, 0.5, 'yellow')}</td>
                         <td class="p-3">${inp(emp, 3, 'canteenTokens', emp.canteenTokens || 0, 1, 'orange')}</td>
                         <td class="p-3" data-out="lop"></td>
@@ -2060,6 +2086,14 @@
         function attChange(el) {
             const emp = employees.find(e => e.id === el.dataset.emp); if (!emp) return;
             const m = getMonthMetrics(settings.selectedMonthYear);
+            if (el.dataset.field === 'lateMinutes') {
+                const mins = parseHM(el.value);
+                if (isNaN(mins)) { showToast('Late time: type hours.minutes, e.g. 2.30 = 2 H : 30 MIN (minutes 00-59).', 'danger'); el.value = fmtHM(emp.lateMinutes); return; }
+                emp.lateMinutes = mins; el.value = fmtHM(mins); el.defaultValue = el.value;
+                refreshAttRow(emp, m);
+                el.classList.add('ring-2', 'ring-green-400'); setTimeout(() => el.classList.remove('ring-2', 'ring-green-400'), 600);
+                return;
+            }
             let v = Math.max(0, parseFloat(el.value) || 0);
             if (el.dataset.field === 'workedDays') { v = Math.min(m.totalDays, v); emp.lopDays = Math.max(0, m.totalWorkDays - v); }
             emp[el.dataset.field] = v; el.value = v;
@@ -2168,14 +2202,20 @@
             const actualHra = fullHra * workedDays + holHra * contractorHolidays;
             const grossEarned = actualBasic + actualHra;
 
-            // Late Minute Deduction (per-minute rate of the daily wage)
-            const perMinuteRate = dailyWage / (hrsPerDay * 60);
-            const lateDeduction = lateMins * perMinuteRate;
+            // Late rule (monthly): 30 min grace, then late is set off against OT hour-for-hour,
+            // the balance late minutes are deducted at (per-day wage / work hours) / 60 per minute.
+            const lateGrace = settings.lateGraceMins ?? 30;
+            const lateAfterGrace = Math.max(0, lateMins - lateGrace);
+            const lateOffsetMins = Math.min(lateAfterGrace, otHours * 60);       // late covered by OT
+            const lateDeductMins = lateAfterGrace - lateOffsetMins;              // balance late to deduct
+            const payOtHours = Math.max(0, (otHours * 60 - lateOffsetMins) / 60); // OT left to pay
+            const perMinuteRate = dailyWage / hrsPerDay / 60;
+            const lateDeduction = lateDeductMins * perMinuteRate;
 
             // OT hourly rate from daily wage, as per contractor rule
             const hourlyRate = otBasis === 'BASIC' ? fullBasic / hrsPerDay : dailyWage / hrsPerDay;
             const otPerHour = Math.round(hourlyRate * otMultiplier + 1e-9);   // OT rate per hour rounded to rupee
-            const otAmount = otHours * otPerHour;
+            const otAmount = payOtHours * otPerHour;
 
             // Statutory Deductions (PF on Basic, ESI on Gross)
             const pf = cnt.pfApplicable === false ? 0 : actualBasic * (settings.pfPercent / 100);   // contractor-wise PF rule
@@ -2199,7 +2239,12 @@
                 basic: rBasic,
                 hra: rHra,
                 grossPay: rGross,
-                otHours: otHours,
+                otHours: Math.round(payOtHours * 100) / 100,
+                otHoursEntered: otHours,
+                lateMinutes: lateMins,
+                lateGrace: lateGrace,
+                lateOffsetMins: lateOffsetMins,
+                lateDeductMins: lateDeductMins,
                 otBasis: otBasis,
                 otRate: otMultiplier,
                 otPerHour: otPerHour,
@@ -2253,7 +2298,7 @@
                         <td class="p-3 font-bold text-indigo-700">₹${calc.hra.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-emerald-600">₹${calc.grossPay.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-amber-700">+ ₹${calc.otAmount.toLocaleString('en-IN')}</td>
-                        <td class="p-3 text-amber-600 font-semibold">₹${calc.lateDeduction.toLocaleString('en-IN')}</td>
+                        <td class="p-3 text-amber-600 font-semibold">₹${calc.lateDeduction.toLocaleString('en-IN')}${calc.lateMinutes ? `<p class="text-[9px] text-slate-500 font-normal whitespace-nowrap">Late ${fmtHM(calc.lateMinutes)}<br>Grace ${fmtHM(calc.lateGrace)} · OT adj ${fmtHM(calc.lateOffsetMins)}<br>Deducted ${fmtHM(calc.lateDeductMins)}</p>` : ''}</td>
                         <td class="p-3 text-sky-700 font-semibold">₹${calc.pf.toLocaleString('en-IN')}</td>
                         <td class="p-3 text-cyan-700 font-semibold">₹${calc.esi.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-indigo-700">₹${calc.advanceEMI.toLocaleString('en-IN')}</td>
@@ -2605,6 +2650,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1.6fr 1fr;border-top:${bd};border-left:${bd};margin:6px 0">
                     ${info('Emp ID', r.id)}${info('Name', r.name)}${info('Unit / Dept', r.unit + ' / ' + (r.dept || 'Production'))}
                     ${info('Paid Days', r.presentDays)}${info('LOP Days', r.lop || 0)}${info('OT Hours', r.otHours || 0)}
+                    ${r.lateMinutes ? info('Late', fmtHM(r.lateMinutes)) + info('Grace / OT adj.', fmtHM(r.lateGrace) + ' / ' + fmtHM(r.lateOffsetMins)) + info('Late Deducted', fmtHM(r.lateDeductMins)) : ''}
                 </div>
                 <div style="display:flex;gap:8px">
                     ${box('EARNINGS', [line('Basic', r.basic), line('HRA', r.hra), line('Overtime', r.otAmount)], 'Total Earnings', (r.grossPay || 0) + (r.otAmount || 0))}
