@@ -434,7 +434,9 @@
                                         <th class="p-4 text-center">Total Advance (₹)</th>
                                         <th class="p-4 text-center">Tenure (Months)</th>
                                         <th class="p-4 text-center font-bold text-indigo-700">Monthly Deduction (₹)</th>
-                                        <th class="p-4 text-center">Status</th>
+                                        <th class="p-4 text-center">Start Month</th>
+                                        <th class="p-4 text-center">Paid / Balance</th>
+                                        <th class="p-4 text-center">Status (Selected Month)</th>
                                         <th class="p-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -946,6 +948,7 @@
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Employee *</label><select required id="formAdvEmpId" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Total Advance (₹) *</label><input required type="number" min="1" id="formAdvTotal" oninput="calculateEMIPreview()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Tenure (Months) *</label><input required type="number" min="1" value="10" id="formAdvMonths" oninput="calculateEMIPreview()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
+          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Deduction Start Month *</label><input required type="month" id="formAdvStart" oninput="calculateEMIPreview()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Reason</label><input id="formAdvReason" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div></div>
           <div class="col-span-2 bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs"><span class="text-slate-500">Monthly Deduction:</span> <b id="emiPreviewBox" class="text-indigo-700">₹0</b></div>
           <div class="col-span-2 flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -1656,6 +1659,7 @@
             document.getElementById('advanceModal').classList.remove('hidden');
             document.getElementById('advanceForm').reset();
             document.getElementById('formAdvMonths').value = 10;
+            document.getElementById('formAdvStart').value = settings.selectedMonthYear;
             calculateEMIPreview();
         }
 
@@ -1667,7 +1671,8 @@
             const total = parseFloat(document.getElementById('formAdvTotal').value) || 0;
             const months = parseInt(document.getElementById('formAdvMonths').value) || 1;
             const emi = months > 0 ? Math.round(total / months + 1e-9) : 0;
-            document.getElementById('emiPreviewBox').innerText = `₹${emi.toLocaleString('en-IN')} / month (${months} months)`;
+            const st = document.getElementById('formAdvStart').value;
+            document.getElementById('emiPreviewBox').innerText = `₹${emi.toLocaleString('en-IN')} / month (${months} months)` + (st ? ` · from ${monthLabel(st)}` : '');
         }
 
         function handleAdvanceSubmit(e) {
@@ -1677,8 +1682,11 @@
             const months = parseInt(document.getElementById('formAdvMonths').value) || 1;
             const reason = document.getElementById('formAdvReason').value || 'Advance Loan';
             const monthlyEMI = Math.round(totalAmount / months + 1e-9);
+            const startMonth = document.getElementById('formAdvStart').value || settings.selectedMonthYear;
 
             const newAdv = {
+                startMonth,
+                skips: {},
                 id: `ADV${Date.now()}`,
                 empId,
                 totalAmount,
@@ -1708,13 +1716,79 @@
             }
         }
 
-        function getEmployeeActiveEMI(empId) {
-            const empAdvances = advances.filter(a => a.empId === empId);
-            let totalEMI = 0;
-            empAdvances.forEach(a => {
-                totalEMI += a.monthlyEMI;
+        // ===== ADVANCE REPAYMENT SCHEDULE =====
+        // Each advance is repaid monthly from its start month until the total is recovered.
+        // A month is skipped (and the tenure moves one month later) when:
+        //   - the company skips it manually (a.skips[month] = 'manual'), or
+        //   - automatically, when that month's salary (net pay before advance) is below the due amount.
+        const advStart = a => a.startMonth || (a.date || '').slice(0, 7) || settings.selectedMonthYear;
+        const nextMonth = m => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`; };
+        // Net pay before advance for any month (uses that month's saved attendance)
+        function netBeforeAdvanceFor(emp, m) {
+            const saved = settings.selectedMonthYear;
+            if (m === saved) return calculateSalaryComponents(emp, { noAdvance: true }).netBeforeAdvance;
+            settings.selectedMonthYear = m;
+            try {
+                if (!isEmpActive(emp, m)) return 0;
+                const t = { ...emp }; loadEmpMonth(t, m);
+                return calculateSalaryComponents(t, { noAdvance: true }).netBeforeAdvance;
+            } finally { settings.selectedMonthYear = saved; }
+        }
+        // Advance deduction for employee in month m. netNow = net pay before advance for month m (optional).
+        function advanceForMonth(emp, m, netNow) {
+            const list = advances.filter(a => a.empId === emp.id).sort((x, y) => advStart(x).localeCompare(advStart(y)) || String(x.id).localeCompare(String(y.id)));
+            const items = {};
+            let total = 0;
+            if (!list.length) return { total, items };
+            const st = list.map(a => ({ a, remaining: a.totalAmount, paidCount: 0 }));
+            let k = st.map(x => advStart(x.a)).sort()[0];
+            for (let guard = 0; k <= m && guard < 600; guard++, k = nextMonth(k)) {
+                const dueList = st.filter(x => advStart(x.a) <= k && x.remaining > 0.5);
+                let available = null;
+                for (const x of dueList) {
+                    const due = Math.round(Math.min(x.a.monthlyEMI, x.remaining) + 1e-9);
+                    let status;
+                    if (x.a.skips && x.a.skips[k] === 'manual') status = 'manual';
+                    else {
+                        if (available === null) available = (k === m && netNow !== undefined) ? netNow : netBeforeAdvanceFor(emp, k);
+                        status = available >= due ? 'deducted' : 'auto';
+                    }
+                    if (status === 'deducted') { x.remaining -= due; x.paidCount++; available -= due; }
+                    if (k === m) { items[x.a.id] = { status, due, amount: status === 'deducted' ? due : 0 }; if (status === 'deducted') total += due; }
+                }
+            }
+            st.forEach(x => {
+                const it = items[x.a.id] || (advStart(x.a) > m ? { status: 'notstarted', due: 0, amount: 0 } : { status: 'completed', due: 0, amount: 0 });
+                items[x.a.id] = { ...it, remaining: Math.max(0, Math.round(x.remaining)), paid: Math.round(x.a.totalAmount - x.remaining), paidCount: x.paidCount };
             });
-            return Math.round(totalEMI);
+            return { total, items };
+        }
+        function getEmployeeActiveEMI(empId) {
+            const e = employees.find(x => x.id === empId);
+            return e ? calculateSalaryComponents(e).advanceEMI : 0;
+        }
+        function toggleAdvanceSkip(id) {
+            const a = advances.find(x => x.id === id); if (!a) return;
+            const m = settings.selectedMonthYear;
+            a.skips = a.skips || {};
+            if (a.skips[m] === 'manual') { delete a.skips[m]; showToast(`Deduction restored for ${monthLabel(m)}.`, 'info'); }
+            else { a.skips[m] = 'manual'; showToast(`Deduction skipped by company for ${monthLabel(m)}. Tenure extended by one month.`, 'info'); }
+            saveAdvancesToStorage(); renderAdvancesList(); renderAttendanceList(); processPayroll(); renderDashboard();
+        }
+        function setAdvanceStart(id, v) {
+            const a = advances.find(x => x.id === id); if (!a || !/^\d{4}-\d{2}$/.test(v)) return renderAdvancesList();
+            a.startMonth = v; saveAdvancesToStorage(); renderAdvancesList(); renderAttendanceList(); processPayroll(); renderDashboard();
+            showToast(`Start month set to ${monthLabel(v)}.`, 'success');
+        }
+
+        function advStatusBadge(i) {
+            const b = (cls, t, sub) => `<span class="px-2.5 py-1 rounded-full font-bold text-[10px] ${cls}">${t}</span>${sub ? `<p class="text-[10px] text-slate-500 mt-1">${sub}</p>` : ''}`;
+            const mon = monthLabel(settings.selectedMonthYear);
+            if (i.status === 'deducted') return b('bg-emerald-100 text-emerald-800', `Deducted ₹${i.amount.toLocaleString('en-IN')}`, mon);
+            if (i.status === 'auto') return b('bg-amber-100 text-amber-800', 'Auto Skipped', `Salary below ₹${i.due.toLocaleString('en-IN')}`);
+            if (i.status === 'manual') return b('bg-sky-100 text-sky-800', 'Skipped by Company', mon);
+            if (i.status === 'completed') return b('bg-slate-200 text-slate-700', 'Completed', '');
+            return b('bg-violet-100 text-violet-800', 'Not Started', '');
         }
 
         function renderAdvancesList() {
@@ -1722,12 +1796,16 @@
             tbody.innerHTML = '';
 
             if (advances.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No salary advances issued yet. Click "Issue New Advance" to add.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400">No salary advances issued yet. Click "Issue New Advance" to add.</td></tr>`;
                 return;
             }
 
+            const m = settings.selectedMonthYear, cache = {};
             advances.forEach(a => {
                 const emp = employees.find(e => e.id === a.empId) || { name: 'Unknown Employee', unit: 'N/A', contractor: 'N/A' };
+                const real = employees.find(e => e.id === a.empId);
+                if (real && !cache[real.id]) cache[real.id] = advanceForMonth(real, m);
+                const info = (real && cache[real.id].items[a.id]) || { status: 'notstarted', paid: 0, paidCount: 0, remaining: a.totalAmount };
                 const cnt = contractors.find(c => c.id === emp.contractorId) || { name: emp.contractor };
 
                 tbody.innerHTML += `
@@ -1743,10 +1821,11 @@
                         <td class="p-4 text-center font-bold text-slate-800">₹${a.totalAmount.toLocaleString('en-IN')}</td>
                         <td class="p-4 text-center font-semibold text-slate-600">${a.months} Months</td>
                         <td class="p-4 text-center font-extrabold text-indigo-700">₹${a.monthlyEMI.toLocaleString('en-IN')} / mo</td>
-                        <td class="p-4 text-center">
-                            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">Active Deduction</span>
-                        </td>
-                        <td class="p-4 text-center">
+                        <td class="p-4 text-center"><input type="month" value="${advStart(a)}" onchange="setAdvanceStart('${a.id}', this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700"></td>
+                        <td class="p-4 text-center"><b class="text-emerald-700">₹${info.paid.toLocaleString('en-IN')}</b> <span class="text-slate-400">(${info.paidCount}/${a.months})</span><p class="text-[10px] text-rose-600 font-semibold">Balance ₹${info.remaining.toLocaleString('en-IN')}</p></td>
+                        <td class="p-4 text-center">${advStatusBadge(info)}</td>
+                        <td class="p-4 text-center whitespace-nowrap">
+                            ${['deducted', 'auto', 'manual'].includes(info.status) ? `<button onclick="toggleAdvanceSkip('${a.id}')" class="px-2 py-1 rounded-lg text-[10px] font-bold mr-1 ${info.status === 'manual' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-500 hover:text-white'}">${info.status === 'manual' ? 'Undo Skip' : 'Skip ' + monthLabel(settings.selectedMonthYear).split(' ')[0]}</button>` : ''}
                             <button onclick="deleteAdvance('${a.id}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
@@ -2209,12 +2288,11 @@
         }
 
         // SALARY & OT CALCULATION LOGIC
-        function calculateSalaryComponents(emp) {
+        function calculateSalaryComponents(emp, opts = {}) {
             const metrics = getMonthMetrics(settings.selectedMonthYear);
             const lop = Math.max(0, metrics.totalWorkDays - getWorkedDays(emp, metrics));
             const lateMins = emp.lateMinutes || 0;
             const otHours = emp.otHours || 0;
-            const advanceEMI = getEmployeeActiveEMI(emp.id);
             
             const cnt = contractors.find(c => c.id === emp.contractorId) || { paidHolidays: 0, otBasis: 'BASIC', otRate: 1.5 };
             const contractorHolidays = getCntHol(cnt);   // month-wise paid holidays
@@ -2268,7 +2346,11 @@
             // Round off each amount to rupee (0.50 and above -> next rupee), then total from rounded values
             const R = x => Math.round((x || 0) + 1e-9);
             const rBasic = R(actualBasic), rHra = R(actualHra), rGross = rBasic + rHra, rOt = R(otAmount);
-            const rPf = R(pf), rEsi = R(esi), rTax = R(tax), rLate = R(lateDeduction), rAdv = R(advanceEMI), rCanteen = R(canteen);
+            const rPf = R(pf), rEsi = R(esi), rTax = R(tax), rLate = R(lateDeduction), rCanteen = R(canteen);
+            // Advance: deducted only if net pay before advance covers it (else auto-skipped), or skipped by company
+            const netBeforeAdvance = rGross + rOt - (rPf + rEsi + rTax + rLate + rCanteen);
+            const adv = opts.noAdvance ? { total: 0, items: {} } : advanceForMonth(emp, settings.selectedMonthYear, netBeforeAdvance);
+            const rAdv = adv.total;
             const totalDeductions = rPf + rEsi + rTax + rLate + rAdv + rCanteen;
             const netPay = Math.max(0, rGross + rOt - totalDeductions);
 
@@ -2297,6 +2379,9 @@
                 canteenTokens: canteenTokens,
                 canteen: rCanteen,
                 canteenRate: canteenRate,
+                netBeforeAdvance: netBeforeAdvance,
+                advanceItems: adv.items,
+                advanceSkipped: Object.values(adv.items).filter(i => i.status === 'auto' || i.status === 'manual').map(i => i.status),
                 lop: lop,
                 pf: rPf,
                 esi: rEsi,
@@ -2342,7 +2427,7 @@
                         <td class="p-3 text-amber-600 font-semibold">₹${calc.lateDeduction.toLocaleString('en-IN')}${calc.lateMinutes ? `<p class="text-[9px] text-slate-500 font-normal whitespace-nowrap">Late ${fmtHM(calc.lateMinutes)}<br>Grace ${fmtHM(calc.lateGrace)} · OT adj ${fmtHM(calc.lateOffsetMins)}<br>Deducted ${fmtHM(calc.lateDeductMins)}</p>` : ''}</td>
                         <td class="p-3 text-sky-700 font-semibold">₹${calc.pf.toLocaleString('en-IN')}</td>
                         <td class="p-3 text-cyan-700 font-semibold">₹${calc.esi.toLocaleString('en-IN')}</td>
-                        <td class="p-3 font-bold text-indigo-700">₹${calc.advanceEMI.toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-bold text-indigo-700">₹${calc.advanceEMI.toLocaleString('en-IN')}${calc.advanceSkipped.length ? `<p class="text-[9px] font-semibold ${calc.advanceSkipped.includes('manual') ? 'text-sky-600' : 'text-amber-600'}">${calc.advanceSkipped.includes('manual') ? 'Skipped by company' : 'Auto skipped (low salary)'}</p>` : ''}</td>
                         <td class="p-3 font-bold text-orange-600">₹${calc.canteen.toLocaleString('en-IN')} <span class="text-[10px] font-normal text-slate-500">(${calc.canteenTokens})</span></td>
                         <td class="p-3 font-bold text-rose-600">₹${calc.totalDeductions.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-extrabold text-teal-700 bg-teal-50">₹${calc.netPay.toLocaleString('en-IN')}</td>
