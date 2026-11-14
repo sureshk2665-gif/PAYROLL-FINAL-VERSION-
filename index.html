@@ -948,7 +948,7 @@
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Employee *</label><select required id="formAdvEmpId" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Total Advance (₹) *</label><input required type="number" min="1" id="formAdvTotal" oninput="calculateEMIPreview()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Tenure (Months) *</label><input required type="number" min="1" value="10" id="formAdvMonths" oninput="calculateEMIPreview()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
-          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Deduction Start Month *</label><div class="flex gap-2"><select id="formAdvStartM" onchange="calculateEMIPreview()" class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select><select id="formAdvStartY" onchange="calculateEMIPreview()" class="w-28 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div></div>
+          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Deduction Start Month *</label><div class="flex gap-2"><select id="formAdvStartM" onchange="calculateEMIPreview()" class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select><select id="formAdvStartY" onchange="onPickerYear('formAdvStartM', 'formAdvStartY', settings.selectedMonthYear); calculateEMIPreview()" class="w-28 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div></div>
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Reason</label><input id="formAdvReason" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div></div>
           <div class="col-span-2 bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs"><span class="text-slate-500">Monthly Deduction:</span> <b id="emiPreviewBox" class="text-indigo-700">₹0</b></div>
           <div class="col-span-2 flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -1659,7 +1659,7 @@
             document.getElementById('advanceModal').classList.remove('hidden');
             document.getElementById('advanceForm').reset();
             document.getElementById('formAdvMonths').value = 10;
-            setMonthPicker('formAdvStartM', 'formAdvStartY', settings.selectedMonthYear);
+            setMonthPicker('formAdvStartM', 'formAdvStartY', settings.selectedMonthYear, settings.selectedMonthYear);
             calculateEMIPreview();
         }
 
@@ -1683,6 +1683,7 @@
             const reason = document.getElementById('formAdvReason').value || 'Advance Loan';
             const monthlyEMI = Math.round(totalAmount / months + 1e-9);
             const startMonth = getMonthPicker('formAdvStartM', 'formAdvStartY');
+            if (startMonth < settings.selectedMonthYear) return showToast(`Start month cannot be before ${monthLabel(settings.selectedMonthYear)}.`, 'danger');
 
             const newAdv = {
                 startMonth,
@@ -1718,18 +1719,26 @@
 
         // ===== MONTH + YEAR DROPDOWNS (instead of the browser's month calendar) =====
         const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        function monthYearOptions(value) {
-            const [vy, vm] = (value || settings.selectedMonthYear).split('-').map(Number);
-            const now = new Date().getFullYear(), from = Math.min(2024, vy), to = Math.max(now + 5, vy);
-            const months = MONTH_NAMES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${i + 1 === vm ? 'selected' : ''}>${n}</option>`).join('');
+        // min = earliest allowed "YYYY-MM" (earlier months/years are hidden)
+        function monthYearOptions(value, min) {
+            value = value || settings.selectedMonthYear; min = min || '0000-01';
+            if (value < min) value = min;
+            const [vy, vm] = value.split('-').map(Number), [miny, minm] = min.split('-').map(Number);
+            const now = new Date().getFullYear(), from = Math.max(miny, Math.min(2024, vy)), to = Math.max(now + 5, vy);
+            const months = MONTH_NAMES.map((n, i) => (vy === miny && i + 1 < minm) ? '' : `<option value="${String(i + 1).padStart(2, '0')}" ${i + 1 === vm ? 'selected' : ''}>${n}</option>`).join('');
             let years = ''; for (let y = from; y <= to; y++) years += `<option value="${y}" ${y === vy ? 'selected' : ''}>${y}</option>`;
-            return { months, years };
+            return { months, years, value };
         }
-        function setMonthPicker(mId, yId, value) {
-            const o = monthYearOptions(value);
+        function setMonthPicker(mId, yId, value, min) {
+            const o = monthYearOptions(value, min);
             document.getElementById(mId).innerHTML = o.months; document.getElementById(yId).innerHTML = o.years;
         }
         const getMonthPicker = (mId, yId) => `${document.getElementById(yId).value}-${document.getElementById(mId).value}`;
+        // after the year changes, rebuild months (keep the month if still allowed, else first allowed)
+        function onPickerYear(mId, yId, min) {
+            const y = document.getElementById(yId).value, m = document.getElementById(mId).value;
+            setMonthPicker(mId, yId, `${y}-${m}`, min);
+        }
 
         // ===== ADVANCE REPAYMENT SCHEDULE =====
         // Each advance is repaid monthly from its start month until the total is recovered.
@@ -1790,6 +1799,14 @@
             else { a.skips[m] = 'manual'; showToast(`Deduction skipped by company for ${monthLabel(m)}. Tenure extended by one month.`, 'info'); }
             saveAdvancesToStorage(); renderAdvancesList(); renderAttendanceList(); processPayroll(); renderDashboard();
         }
+        // list dropdowns: earliest allowed = selected payroll month (or the advance's existing earlier start)
+        function advPick(id, y, m) {
+            const a = advances.find(x => x.id === id); if (!a) return;
+            const cur = advStart(a), min = cur < settings.selectedMonthYear ? cur : settings.selectedMonthYear;
+            let v = `${y || cur.slice(0, 4)}-${m || cur.slice(5, 7)}`;
+            if (v < min) v = min;
+            setAdvanceStart(id, v);
+        }
         function setAdvanceStart(id, v) {
             const a = advances.find(x => x.id === id); if (!a || !/^\d{4}-\d{2}$/.test(v)) return renderAdvancesList();
             a.startMonth = v; saveAdvancesToStorage(); renderAdvancesList(); renderAttendanceList(); processPayroll(); renderDashboard();
@@ -1836,9 +1853,10 @@
                         <td class="p-4 text-center font-bold text-slate-800">₹${a.totalAmount.toLocaleString('en-IN')}</td>
                         <td class="p-4 text-center font-semibold text-slate-600">${a.months} Months</td>
                         <td class="p-4 text-center font-extrabold text-indigo-700">₹${a.monthlyEMI.toLocaleString('en-IN')} / mo</td>
-                        <td class="p-4 text-center whitespace-nowrap">${(() => { const o = monthYearOptions(advStart(a)), c = 'bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs font-semibold text-slate-700';
-                            return `<select data-adv-m="${a.id}" onchange="setAdvanceStart('${a.id}', document.querySelector('[data-adv-y=&quot;${a.id}&quot;]').value + '-' + this.value)" class="${c}">${o.months}</select>
-                                    <select data-adv-y="${a.id}" onchange="setAdvanceStart('${a.id}', this.value + '-' + document.querySelector('[data-adv-m=&quot;${a.id}&quot;]').value)" class="${c} ml-1">${o.years}</select>`; })()}</td>
+                        <td class="p-4 text-center whitespace-nowrap">${(() => { const min = advStart(a) < settings.selectedMonthYear ? advStart(a) : settings.selectedMonthYear;
+                            const o = monthYearOptions(advStart(a), min), c = 'bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs font-semibold text-slate-700';
+                            return `<select onchange="advPick('${a.id}', null, this.value)" class="${c}">${o.months}</select>
+                                    <select onchange="advPick('${a.id}', this.value, null)" class="${c} ml-1">${o.years}</select>`; })()}</td>
                         <td class="p-4 text-center"><b class="text-emerald-700">₹${info.paid.toLocaleString('en-IN')}</b> <span class="text-slate-400">(${info.paidCount}/${a.months})</span><p class="text-[10px] text-rose-600 font-semibold">Balance ₹${info.remaining.toLocaleString('en-IN')}</p></td>
                         <td class="p-4 text-center">${advStatusBadge(info)}</td>
                         <td class="p-4 text-center whitespace-nowrap">
