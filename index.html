@@ -1991,7 +1991,7 @@
         }
         function fmtHM(mins) {
             const t = Math.max(0, Math.round(mins || 0));
-            return `${Math.floor(t / 60)} H : ${String(t % 60).padStart(2, '0')} MIN`;
+            return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
         }
         function editHM(mins) {
             const t = Math.max(0, Math.round(mins || 0));
@@ -2015,9 +2015,9 @@
 
             // Late time: typed as H.MM (2.3 = 2 H 03 MIN, 2.30 = 2 H 30 MIN), stored as total minutes
             const lateInp = emp =>
-                `<input type="text" inputmode="decimal" value="${fmtHM(emp.lateMinutes)}" data-emp="${emp.id}" data-col="1" data-field="lateMinutes" title="Type hours.minutes, e.g. 1.34 = 1 H : 34 MIN"
+                `<input type="text" inputmode="decimal" value="${fmtHM(emp.lateMinutes)}" data-emp="${emp.id}" data-col="1" data-field="lateMinutes" title="Type hours.minutes, e.g. 1.34 = 1:34 (1 hour 34 minutes)"
                     ${attEditMode ? '' : 'disabled'} onfocus="this.value=editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes);this.defaultValue='';this.select()" onblur="if(this.value===editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes))this.value=fmtHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes)" onkeydown="attKey(event, this)" onchange="attChange(this)"
-                    class="att-in w-32 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed bg-white border-2 border-amber-300 text-amber-700 rounded-lg p-1.5 text-center font-bold text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">`;
+                    class="att-in w-20 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed bg-white border-2 border-amber-300 text-amber-700 rounded-lg p-1.5 text-center font-bold focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">`;
 
             const uf = (document.getElementById('attUnitFilter') || {}).value || 'ALL';
             const list = employees.filter(e => (uf === 'ALL' || e.unit === uf) && isEmpActive(e));
@@ -2089,7 +2089,7 @@
             const m = getMonthMetrics(settings.selectedMonthYear);
             if (el.dataset.field === 'lateMinutes') {
                 const mins = parseHM(el.value);
-                if (isNaN(mins)) { showToast('Late time: type hours.minutes, e.g. 2.30 = 2 H : 30 MIN (minutes 00-59).', 'danger'); el.value = fmtHM(emp.lateMinutes); return; }
+                if (isNaN(mins)) { showToast('Late time: type hours.minutes, e.g. 2.30 = 2:30 (minutes 00-59).', 'danger'); el.value = fmtHM(emp.lateMinutes); return; }
                 emp.lateMinutes = mins; el.value = fmtHM(mins); el.defaultValue = el.value;
                 refreshAttRow(emp, m);
                 el.classList.add('ring-2', 'ring-green-400'); setTimeout(() => el.classList.remove('ring-2', 'ring-green-400'), 600);
