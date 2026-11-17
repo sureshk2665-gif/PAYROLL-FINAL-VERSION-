@@ -351,8 +351,8 @@
                 <section id="view-contractors" class="space-y-6 hidden">
                     <div class="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <div>
-                            <h3 class="font-bold text-slate-800 text-base">Contractor Master, Paid Holidays & OT Calculation Rules</h3>
-                            <p class="text-xs text-slate-500">Configure contractor address, paid holidays, and OT formula (1x/1.5x on Basic vs Gross).</p>
+                            <h3 class="font-bold text-slate-800 text-base">Contractor Master & OT Calculation Rules</h3>
+                            <p class="text-xs text-slate-500">Configure contractor address and OT formula (1x/1.5x on Basic vs Gross).</p>
                         </div>
                         <button onclick="openContractorModal(false)" class="bg-teal-600 hover:bg-teal-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-sm transition">
                             <i class="fa-solid fa-plus"></i> Add New Contractor
@@ -462,6 +462,10 @@
                                 <i class="fa-solid fa-building text-sky-600 text-xs"></i>
                                 <select id="attUnitFilter" onchange="if(attEditMode){attSave();} renderAttendanceList()" class="bg-transparent text-xs font-bold text-sky-800 outline-none cursor-pointer"><option value="ALL">All Units</option><option value="Unit 1">Unit 1</option><option value="Unit 2">Unit 2</option><option value="Unit 3">Unit 3</option><option value="Unit 4">Unit 4</option></select>
                             </div>
+                            <div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1 shrink-0">
+                                <i class="fa-solid fa-handshake text-indigo-600 text-xs"></i>
+                                <select id="attCntFilter" onchange="if(attEditMode){attSave();} renderAttendanceList()" class="bg-transparent text-xs font-bold text-indigo-800 outline-none cursor-pointer max-w-[180px]"><option value="ALL">All Contractors</option></select>
+                            </div>
                             <button id="attEditBtn" onclick="attEdit()" class="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap shadow"><i class="fa-solid fa-pen-to-square mr-1"></i>Edit</button>
                             <button id="attSaveBtn" onclick="attSave()" class="hidden bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap shadow"><i class="fa-solid fa-floppy-disk mr-1"></i>Save</button>
                             <button id="attCancelBtn" onclick="attCancel()" class="hidden bg-rose-50 text-rose-600 border border-rose-200 text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap"><i class="fa-solid fa-xmark mr-1"></i>Cancel</button>
@@ -478,6 +482,7 @@
                                         <th class="p-4">ID & Name</th>
                                         <th class="p-4">Unit & Contractor</th>
                                         <th class="p-4 text-center">Present Days ✎</th>
+                                        <th class="p-4 text-center">Paid Holidays ✎</th>
                                         <th class="p-4 text-center">Late (H.MM) ✎</th>
                                         <th class="p-4 text-center">OT Hours ✎</th>
                                         <th class="p-4 text-center">Canteen Tokens ✎</th>
@@ -504,6 +509,10 @@
                             <div class="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-3 py-1.5">
                                 <i class="fa-solid fa-building text-teal-600 text-xs"></i>
                                 <select id="payUnitFilter" onchange="processPayroll()" class="bg-transparent text-xs font-bold text-teal-800 outline-none cursor-pointer"><option value="ALL">All Units</option><option value="Unit 1">Unit 1</option><option value="Unit 2">Unit 2</option><option value="Unit 3">Unit 3</option><option value="Unit 4">Unit 4</option></select>
+                            </div>
+                            <div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-1.5">
+                                <i class="fa-solid fa-handshake text-indigo-600 text-xs"></i>
+                                <select id="payCntFilter" onchange="processPayroll()" class="bg-transparent text-xs font-bold text-indigo-800 outline-none cursor-pointer max-w-[180px]"><option value="ALL">All Contractors</option></select>
                             </div>
                             <button onclick="processPayroll()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition shadow-sm">
                             <i class="fa-solid fa-arrows-rotate"></i> Recalculate Payroll
@@ -894,20 +903,8 @@
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Contractor Name *</label><input required id="formContractorName" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div></div>
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Address</label><textarea id="formContractorAddress" rows="2" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></textarea></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Phone</label><input id="formContractorPhone" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
-          <div><label class="block text-xs font-semibold text-slate-600 mb-1">Default Paid Holidays / Month</label><input type="number" min="0" value="0" id="formContractorHolidays" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Basis</label><select id="formContractorOtBasis" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"><option value="BASIC">Basic</option><option value="GROSS">Gross</option></select></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Rate</label><select id="formContractorOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
-          <div class="col-span-2 bg-teal-50 border-2 border-teal-200 rounded-xl p-3">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-xs font-bold text-teal-800"><i class="fa-solid fa-calendar-check mr-1"></i>Month-wise Paid Holidays <span id="holYearLbl"></span></p>
-              <div class="flex gap-1">
-                <button type="button" onclick="holYearShift(-1)" class="w-6 h-6 rounded bg-white text-teal-700 text-[10px]"><i class="fa-solid fa-chevron-left"></i></button>
-                <button type="button" onclick="holYearShift(1)" class="w-6 h-6 rounded bg-white text-teal-700 text-[10px]"><i class="fa-solid fa-chevron-right"></i></button>
-              </div>
-            </div>
-            <div id="holMonthGrid" class="grid grid-cols-6 gap-1.5"></div>
-            <p class="text-[10px] text-teal-700 mt-1.5">Leave blank to use the default.</p>
-          </div>
           <div class="col-span-2 grid grid-cols-2 gap-3">
             <label class="flex items-center justify-between gap-2 bg-sky-50 border-2 border-sky-200 rounded-xl px-3 py-2.5 cursor-pointer">
               <span class="text-xs font-bold text-sky-800"><i class="fa-solid fa-shield-halved mr-1"></i>PF Applicable</span>
@@ -1304,7 +1301,7 @@
         }
 
         // ===== MONTH-WISE ATTENDANCE STORAGE =====
-        const ATT_FIELDS = ['workedDays', 'lopDays', 'lateMinutes', 'otHours', 'canteenTokens'];
+        const ATT_FIELDS = ['workedDays', 'paidHol', 'lopDays', 'lateMinutes', 'otHours', 'canteenTokens'];
         function stashEmpMonth(e, m) {
             e.att = e.att || {};
             const rec = {}; ATT_FIELDS.forEach(k => { if (e[k] !== undefined && e[k] !== null) rec[k] = e[k]; });
@@ -1313,7 +1310,7 @@
         function loadEmpMonth(e, m) {
             const rec = (e.att && e.att[m]) || {};
             e.workedDays = rec.workedDays;   // undefined = full working days
-            e.lopDays = rec.lopDays || 0; e.lateMinutes = rec.lateMinutes || 0; e.otHours = rec.otHours || 0; e.canteenTokens = rec.canteenTokens || 0;
+            e.paidHol = rec.paidHol || 0; e.lopDays = rec.lopDays || 0; e.lateMinutes = rec.lateMinutes || 0; e.otHours = rec.otHours || 0; e.canteenTokens = rec.canteenTokens || 0;
         }
         function monthHasData(m) {
             return employees.some(e => e.att && e.att[m] && Object.keys(e.att[m]).length) || !!getHistory()[m];
@@ -1415,7 +1412,7 @@
             const tabs = ['dashboard', 'contractors', 'employees', 'resigned', 'advances', 'attendance', 'payroll', 'reports', 'clientadmin', 'softwareadmin'];
             const titles = {
                 'dashboard': 'Dashboard Overview',
-                'contractors': 'Contractor Rules, Paid Holidays & OT Rates',
+                'contractors': 'Contractor Rules & OT Rates',
                 'employees': 'Employee Master (Unit & Contractor Wise)',
                 'advances': 'Salary Advances & Deductions',
                 'attendance': 'Monthly Attendance, LOP & OT Hours',
@@ -1472,7 +1469,6 @@
                         <p class="text-xs text-slate-500">${c.address || 'No address specified'}</p>
                         <p class="text-xs text-slate-600"><i class="fa-solid fa-phone text-slate-400 mr-1"></i>${c.phone || 'N/A'}</p>
                         <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
-                            <div>Paid Holidays (${monthLabel(settings.selectedMonthYear)}): <strong class="text-teal-700">${getCntHol(c)} Days</strong></div>
                             <div>OT Basis: <strong class="text-amber-700">${c.otBasis || 'BASIC'}</strong></div>
                             <div>OT Rate: <strong class="text-amber-700">${c.otRate || 1.5}x</strong></div>
                             <div class="col-span-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold"><i class="fa-solid fa-clock"></i> Working Hours: ${c.workHours || 8} Hrs / Day</span></div>
@@ -1496,36 +1492,17 @@
             filterSelect.innerHTML = '<option value="ALL">All Contractors</option>';
 
             contractors.forEach(c => {
-                empModalSelect.innerHTML += `<option value="${c.id}">${c.name} (${getCntHol(c)} Holidays, OT: ${c.otRate}x)</option>`;
+                empModalSelect.innerHTML += `<option value="${c.id}">${c.name} (OT: ${c.otRate}x)</option>`;
                 filterSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
             });
+            // same contractor filter on Attendance and Payroll (keep current choice)
+            ['attCntFilter', 'payCntFilter'].forEach(id => {
+                const el = document.getElementById(id); if (!el) return;
+                const cur = el.value || 'ALL';
+                el.innerHTML = '<option value="ALL">All Contractors</option>' + contractors.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+                el.value = contractors.some(c => c.id === cur) ? cur : 'ALL';
+            });
         }
-
-        function getCntHol(c, m) {
-            if (!c) return 0;
-            m = m || settings.selectedMonthYear;
-            const v = c.holidaysByMonth ? c.holidaysByMonth[m] : undefined;
-            return (v === undefined || v === null || v === '') ? (c.paidHolidays || 0) : v;
-        }
-        let holYear = null, holDraft = {};
-        function renderHolGrid() {
-            document.getElementById('holYearLbl').textContent = '(' + holYear + ')';
-            document.getElementById('holMonthGrid').innerHTML = MONTHS.map((n, i) => {
-                const m = `${holYear}-${String(i + 1).padStart(2, '0')}`;
-                const v = holDraft[m] ?? '';
-                const sel = m === settings.selectedMonthYear;
-                return `<label class="text-center"><span class="block text-[10px] font-bold ${sel ? 'text-indigo-700' : 'text-teal-700'}">${n}</span>
-                    <input type="number" min="0" max="31" value="${v}" placeholder="-" oninput="holDraft['${m}'] = this.value === '' ? undefined : (parseFloat(this.value) || 0)"
-                    class="w-full bg-white border ${sel ? 'border-indigo-400 ring-1 ring-indigo-300' : 'border-teal-200'} rounded-lg p-1 text-xs text-center font-bold outline-none focus:ring-2 focus:ring-teal-400"></label>`;
-            }).join('');
-        }
-        function holYearShift(d) { holYear += d; renderHolGrid(); }
-        function openHolGrid(c) {
-            holYear = Number(settings.selectedMonthYear.split('-')[0]);
-            holDraft = { ...((c && c.holidaysByMonth) || {}) };
-            renderHolGrid();
-        }
-        function collectHol() { const o = {}; Object.keys(holDraft).forEach(k => { if (holDraft[k] !== undefined && holDraft[k] !== '') o[k] = holDraft[k]; }); return o; }
 
         function setWH(h, fromInput) {
             h = parseFloat(h) || 8;
@@ -1557,7 +1534,6 @@
             document.getElementById('contractorEditId').value = "";
             document.getElementById('contractorForm').reset();
             setWH(8);
-            openHolGrid(null);
             document.getElementById('formContractorPf').checked = true;
             document.getElementById('formContractorEsi').checked = true;
             document.getElementById('formContractorService').value = 30;
@@ -1574,7 +1550,6 @@
             const name = document.getElementById('formContractorName').value;
             const address = document.getElementById('formContractorAddress').value;
             const phone = document.getElementById('formContractorPhone').value;
-            const paidHolidays = parseInt(document.getElementById('formContractorHolidays').value) || 0;
             const otBasis = document.getElementById('formContractorOtBasis').value;
             const otRate = parseFloat(document.getElementById('formContractorOtRate').value) || 1.5;
             const workHours = parseFloat(document.getElementById('formContractorWorkHours').value) || 8;
@@ -1587,7 +1562,7 @@
                 const idx = contractors.findIndex(c => c.id === editId);
                 if (idx !== -1) {
                     const locked = document.getElementById('formContractorName').readOnly;
-                    contractors[idx] = { ...contractors[idx], paidHolidays, otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge, holidaysByMonth: collectHol(),
+                    contractors[idx] = { ...contractors[idx], otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge,
                         phone: locked ? contractors[idx].phone : phone,
                         name: locked ? contractors[idx].name : name, address: locked ? contractors[idx].address : address };
                     employees.forEach(e => { if (e.contractorId === editId) e.contractor = contractors[idx].name; });
@@ -1596,7 +1571,7 @@
                 }
             } else {
                 const newId = `CNT${String(contractors.length + 1).padStart(3, '0')}`;
-                contractors.push({ id: newId, name, address, phone, paidHolidays, otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge, holidaysByMonth: collectHol() });
+                contractors.push({ id: newId, name, address, phone, otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge });
                 showToast("New contractor added!", "success");
             }
 
@@ -1617,8 +1592,6 @@
             document.getElementById('formContractorName').value = c.name;
             document.getElementById('formContractorAddress').value = c.address;
             document.getElementById('formContractorPhone').value = c.phone;
-            document.getElementById('formContractorHolidays').value = c.paidHolidays;
-            openHolGrid(c);
             document.getElementById('formContractorOtBasis').value = c.otBasis || 'BASIC';
             document.getElementById('formContractorOtRate').value = c.otRate || 1.5;
             setWH(c.workHours || 8);
@@ -2128,7 +2101,7 @@
             const tbody = document.getElementById('attendanceTableBody');
 
             if (employees.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">No employees present. Add employees to configure attendance.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">No employees present. Add employees to configure attendance.</td></tr>`;
                 return;
             }
             const inp = (emp, col, field, val, step, color, max) =>
@@ -2138,13 +2111,14 @@
 
             // Late time: typed as H.MM (2.3 = 2 H 03 MIN, 2.30 = 2 H 30 MIN), stored as total minutes
             const lateInp = emp =>
-                `<input type="text" inputmode="decimal" value="${fmtHM(emp.lateMinutes)}" data-emp="${emp.id}" data-col="1" data-field="lateMinutes" title="Type hours.minutes, e.g. 1.34 = 1:34 (1 hour 34 minutes)"
+                `<input type="text" inputmode="decimal" value="${fmtHM(emp.lateMinutes)}" data-emp="${emp.id}" data-col="2" data-field="lateMinutes" title="Type hours.minutes, e.g. 1.34 = 1:34 (1 hour 34 minutes)"
                     ${attEditMode ? '' : 'disabled'} onfocus="this.value=editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes);this.defaultValue='';this.select()" onblur="if(this.value===editHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes))this.value=fmtHM(employees.find(x=>x.id===this.dataset.emp).lateMinutes)" onkeydown="attKey(event, this)" onchange="attChange(this)"
                     class="att-in w-20 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed bg-white border-2 border-amber-300 text-amber-700 rounded-lg p-1.5 text-center font-bold focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">`;
 
             const uf = (document.getElementById('attUnitFilter') || {}).value || 'ALL';
-            const list = employees.filter(e => (uf === 'ALL' || e.unit === uf) && isEmpActive(e));
-            if (!list.length) { tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">No employees in ${uf}.</td></tr>`; return; }
+            const cf = (document.getElementById('attCntFilter') || {}).value || 'ALL';
+            const list = employees.filter(e => (uf === 'ALL' || e.unit === uf) && (cf === 'ALL' || e.contractorId === cf) && isEmpActive(e));
+            if (!list.length) { tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">No employees for this Unit / Contractor.</td></tr>`; return; }
             tbody.innerHTML = list.map((emp, i) => {
                 const cnt = contractors.find(c => c.id === emp.contractorId) || { name: emp.contractor, paidHolidays: 0 };
                 return `
@@ -2155,9 +2129,10 @@
                             <span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-semibold">${cnt.name}</span>
                         </td>
                         <td class="p-3">${inp(emp, 0, 'workedDays', getWorkedDays(emp, metrics), 0.5, 'emerald', metrics.totalDays)}</td>
+                        <td class="p-3">${inp(emp, 1, 'paidHol', emp.paidHol || 0, 0.5, 'teal', metrics.totalDays)}</td>
                         <td class="p-3">${lateInp(emp)}</td>
-                        <td class="p-3">${inp(emp, 2, 'otHours', emp.otHours || 0, 0.5, 'yellow')}</td>
-                        <td class="p-3">${inp(emp, 3, 'canteenTokens', emp.canteenTokens || 0, 1, 'orange')}</td>
+                        <td class="p-3">${inp(emp, 3, 'otHours', emp.otHours || 0, 0.5, 'yellow')}</td>
+                        <td class="p-3">${inp(emp, 4, 'canteenTokens', emp.canteenTokens || 0, 1, 'orange')}</td>
                         <td class="p-3" data-out="lop"></td>
                         <td class="p-3 font-bold text-indigo-700" data-out="adv"></td>
                         <td class="p-3" data-out="paid"></td>
@@ -2169,14 +2144,13 @@
         function refreshAttRow(emp, metrics) {
             metrics = metrics || getMonthMetrics(settings.selectedMonthYear);
             const row = document.querySelector(`#attendanceTableBody tr[data-row="${emp.id}"]`); if (!row) return;
-            const cnt = contractors.find(c => c.id === emp.contractorId) || { paidHolidays: 0 };
-            const worked = getWorkedDays(emp, metrics);
+            const worked = getWorkedDays(emp, metrics), hol = emp.paidHol || 0;
             const lop = Math.max(0, metrics.totalWorkDays - worked);
             const cRate = unitCanteenRate(emp.unit);
             const canteenAmt = (emp.canteenTokens || 0) * cRate;
             row.querySelector('[data-out="lop"]').innerHTML = `<span class="inline-block min-w-[3rem] px-3 py-1.5 rounded-lg font-extrabold ${lop > 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}">${lop}</span>`;
             row.querySelector('[data-out="adv"]').innerHTML = `₹${getEmployeeActiveEMI(emp.id).toLocaleString('en-IN')}<p class="text-[10px] text-orange-600 font-semibold">Canteen - ₹${canteenAmt.toLocaleString('en-IN')}${emp.canteenTokens ? ` (${emp.canteenTokens} × ₹${cRate})` : ''}</p>`;
-            row.querySelector('[data-out="paid"]').innerHTML = `<span class="font-extrabold text-emerald-600 text-sm">${worked + getCntHol(cnt)}</span> Days<p class="text-[10px] text-slate-400">of ${metrics.totalWorkDays} + ${getCntHol(cnt)} hol.</p>`;
+            row.querySelector('[data-out="paid"]').innerHTML = `<span class="font-extrabold text-emerald-600 text-sm">${worked + hol}</span> Days<p class="text-[10px] text-slate-400">of ${metrics.totalWorkDays} + ${hol} hol.</p>`;
         }
 
         let attEditMode = false, attBackup = null;
@@ -2229,7 +2203,7 @@
         // Continuous entry: Enter / Tab -> next box in row, then next employee. Arrow Up/Down -> same column.
         function attKey(e, el) {
             const all = [...document.querySelectorAll('#attendanceTableBody .att-in')];
-            const idx = all.indexOf(el), cols = 4;
+            const idx = all.indexOf(el), cols = 5;
             let next = null;
             if (e.key === 'Enter') next = all[e.shiftKey ? idx - 1 : idx + 1];
             else if (e.key === 'ArrowDown') next = all[idx + cols];
@@ -2302,6 +2276,7 @@
                 e.lopDays = 0;
                 e.workedDays = undefined;
                 e.canteenTokens = 0;
+                e.paidHol = 0;
                 e.lateMinutes = 0;
                 e.otHours = 0;
             });
@@ -2320,7 +2295,7 @@
             const otHours = emp.otHours || 0;
             
             const cnt = contractors.find(c => c.id === emp.contractorId) || { paidHolidays: 0, otBasis: 'BASIC', otRate: 1.5 };
-            const contractorHolidays = getCntHol(cnt);   // month-wise paid holidays
+            const contractorHolidays = Math.max(0, Number(emp.paidHol) || 0);   // paid holidays entered per employee in Attendance
             const otBasis = cnt.otBasis || 'BASIC'; // 'BASIC' or 'GROSS'
             const otMultiplier = cnt.otRate || 1.5;   // 1.0 or 1.5
 
@@ -2427,8 +2402,9 @@
             }
 
             const puf = (document.getElementById('payUnitFilter') || {}).value || 'ALL';
-            const plist = employees.filter(e => (puf === 'ALL' || e.unit === puf) && isEmpActive(e));
-            if (!plist.length) { tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-slate-400">No employees in ${puf}.</td></tr>`; return; }
+            const pcf = (document.getElementById('payCntFilter') || {}).value || 'ALL';
+            const plist = employees.filter(e => (puf === 'ALL' || e.unit === puf) && (pcf === 'ALL' || e.contractorId === pcf) && isEmpActive(e));
+            if (!plist.length) { tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-slate-400">No employees for this Unit / Contractor.</td></tr>`; return; }
             const T = { basic: 0, hra: 0, grossPay: 0, otAmount: 0, lateDeduction: 0, pf: 0, esi: 0, advanceEMI: 0, canteen: 0, totalDeductions: 0, netPay: 0 };
             plist.forEach(emp => {
                 const calc = calculateSalaryComponents(emp);
