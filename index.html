@@ -213,7 +213,7 @@
             <div class="p-4 border-t border-slate-700 text-[11px] text-slate-300 bg-slate-900">
                 <p class="font-semibold text-white">Active Month Summary</p>
                 <div class="flex justify-between items-center mt-1">
-                    <span>Total Staff:</span>
+                    <span>Total Employees:</span>
                     <span id="sidebarEmpCount" class="text-teal-400 font-bold">0</span>
                 </div>
                 <div class="flex justify-between items-center mt-0.5">
@@ -261,7 +261,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                             <div>
-                                <p class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Total Active Staff</p>
+                                <p class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Total Active Employees</p>
                                 <h3 class="text-2xl font-extrabold text-slate-800 mt-1" id="dashTotalEmployees">0</h3>
                                 <p class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-building text-teal-600"></i> Across 4 Units</p>
                             </div>
@@ -1477,7 +1477,7 @@
                                 <span class="px-2 py-0.5 rounded-full font-bold ${c.esiApplicable !== false ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-400 line-through'}">ESI ${c.esiApplicable !== false ? '✓ Applicable' : '✗ Not Applicable'}</span>
                             </div>
                             <div class="col-span-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-bold"><i class="fa-solid fa-hand-holding-dollar"></i> Service Charge: &#8377;${cntService(c)} / man day</span></div>
-                            <div>Staff: <strong>${empCount}</strong></div>
+                            <div>Employees: <strong>${empCount}</strong></div>
                         </div>
                     </div>
                 `;
@@ -1864,7 +1864,7 @@
             unitCardContainer.innerHTML = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4'].map(u => `
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
                     <p class="text-xs font-bold text-slate-500 uppercase">${u}</p>
-                    <h4 class="text-xl font-extrabold text-teal-700 mt-1">${unitCounts[u]} Staff</h4>
+                    <h4 class="text-xl font-extrabold text-teal-700 mt-1">${unitCounts[u]} ${unitCounts[u] === 1 ? 'Employee' : 'Employees'}</h4>
                     <span class="text-[10px] text-slate-400">Assigned Employees</span>
                 </div>
             `).join('');
