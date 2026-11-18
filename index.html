@@ -903,8 +903,9 @@
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Contractor Name *</label><input required id="formContractorName" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div></div>
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Address</label><textarea id="formContractorAddress" rows="2" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></textarea></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Phone</label><input id="formContractorPhone" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
-          <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Basis</label><select id="formContractorOtBasis" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"><option value="BASIC">Basic</option><option value="GROSS">Gross</option></select></div>
-          <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Rate</label><select id="formContractorOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
+          <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Basis</label><select id="formContractorOtBasis" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="BASIC">Basic</option><option value="GROSS">Gross</option></select></div>
+          <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="otMode" value="rate" id="otModeRate" checked onchange="applyOtMode()" class="accent-blue-600"> OT Rate</label><select id="formContractorOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
+          <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="otMode" value="hour" id="otModeHour" onchange="applyOtMode()" class="accent-blue-600"> OT (Per Hour)</label><input type="number" min="0" step="0.5" id="formContractorOtHourly" placeholder="e.g. 100" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
           <div class="col-span-2 grid grid-cols-2 gap-3">
             <label class="flex items-center justify-between gap-2 bg-sky-50 border-2 border-sky-200 rounded-xl px-3 py-2.5 cursor-pointer">
               <span class="text-xs font-bold text-sky-800"><i class="fa-solid fa-shield-halved mr-1"></i>PF Applicable</span>
@@ -1469,8 +1470,10 @@
                         <p class="text-xs text-slate-500">${c.address || 'No address specified'}</p>
                         <p class="text-xs text-slate-600"><i class="fa-solid fa-phone text-slate-400 mr-1"></i>${c.phone || 'N/A'}</p>
                         <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
-                            <div>OT Basis: <strong class="text-amber-700">${c.otBasis || 'BASIC'}</strong></div>
-                            <div>OT Rate: <strong class="text-amber-700">${c.otRate || 1.5}x</strong></div>
+                            ${c.otMode === 'hour'
+                                ? `<div class="col-span-2">OT (Per Hour): <strong class="text-amber-700">₹${(Number(c.otHourly) || 0).toLocaleString('en-IN')}</strong></div>`
+                                : `<div>OT Basis: <strong class="text-amber-700">${c.otBasis || 'BASIC'}</strong></div>
+                            <div>OT Rate: <strong class="text-amber-700">${c.otRate || 1.5}x</strong></div>`}
                             <div class="col-span-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold"><i class="fa-solid fa-clock"></i> Working Hours: ${c.workHours || 8} Hrs / Day</span></div>
                             <div class="col-span-2 flex gap-2">
                                 <span class="px-2 py-0.5 rounded-full font-bold ${c.pfApplicable !== false ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-400 line-through'}">PF ${c.pfApplicable !== false ? '✓ Applicable' : '✗ Not Applicable'}</span>
@@ -1492,7 +1495,7 @@
             filterSelect.innerHTML = '<option value="ALL">All Contractors</option>';
 
             contractors.forEach(c => {
-                empModalSelect.innerHTML += `<option value="${c.id}">${c.name} (OT: ${c.otRate}x)</option>`;
+                empModalSelect.innerHTML += `<option value="${c.id}">${c.name} (OT: ${c.otMode === 'hour' ? '₹' + (Number(c.otHourly) || 0) + '/hr' : c.otRate + 'x'})</option>`;
                 filterSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
             });
             // same contractor filter on Attendance and Payroll (keep current choice)
@@ -1511,6 +1514,20 @@
                 const on = parseFloat(b.dataset.h) === h;
                 b.className = 'wh flex-1 py-2 rounded-xl border-2 text-xs font-bold transition ' + (on ? 'bg-blue-600 border-blue-600 text-white shadow' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400');
             });
+        }
+
+        // OT: either "OT Rate" (multiplier on Basic/Gross hourly wage) or a fixed "OT (Per Hour)" amount
+        function applyOtMode() {
+            const hour = document.getElementById('otModeHour').checked;
+            document.getElementById('formContractorOtBasis').disabled = hour;
+            document.getElementById('formContractorOtRate').disabled = hour;
+            document.getElementById('formContractorOtHourly').disabled = !hour;
+            if (hour) document.getElementById('formContractorOtHourly').focus();
+        }
+        function setOtMode(mode, hourly) {
+            document.getElementById(mode === 'hour' ? 'otModeHour' : 'otModeRate').checked = true;
+            document.getElementById('formContractorOtHourly').value = hourly ?? '';
+            applyOtMode();
         }
 
         function setContractorLock(vendor) {
@@ -1534,6 +1551,7 @@
             document.getElementById('contractorEditId').value = "";
             document.getElementById('contractorForm').reset();
             setWH(8);
+            setOtMode('rate', '');
             document.getElementById('formContractorPf').checked = true;
             document.getElementById('formContractorEsi').checked = true;
             document.getElementById('formContractorService').value = 30;
@@ -1552,6 +1570,9 @@
             const phone = document.getElementById('formContractorPhone').value;
             const otBasis = document.getElementById('formContractorOtBasis').value;
             const otRate = parseFloat(document.getElementById('formContractorOtRate').value) || 1.5;
+            const otMode = document.getElementById('otModeHour').checked ? 'hour' : 'rate';
+            const otHourly = parseFloat(document.getElementById('formContractorOtHourly').value);
+            if (otMode === 'hour' && !(otHourly > 0)) { showToast('Enter the OT (Per Hour) amount.', 'danger'); document.getElementById('formContractorOtHourly').focus(); return; }
             const workHours = parseFloat(document.getElementById('formContractorWorkHours').value) || 8;
             const pfApplicable = document.getElementById('formContractorPf').checked;
             const esiApplicable = document.getElementById('formContractorEsi').checked;
@@ -1562,7 +1583,7 @@
                 const idx = contractors.findIndex(c => c.id === editId);
                 if (idx !== -1) {
                     const locked = document.getElementById('formContractorName').readOnly;
-                    contractors[idx] = { ...contractors[idx], otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge,
+                    contractors[idx] = { ...contractors[idx], otBasis, otRate, otMode, otHourly: otMode === 'hour' ? otHourly : (contractors[idx].otHourly ?? null), workHours, pfApplicable, esiApplicable, serviceCharge,
                         phone: locked ? contractors[idx].phone : phone,
                         name: locked ? contractors[idx].name : name, address: locked ? contractors[idx].address : address };
                     employees.forEach(e => { if (e.contractorId === editId) e.contractor = contractors[idx].name; });
@@ -1571,7 +1592,7 @@
                 }
             } else {
                 const newId = `CNT${String(contractors.length + 1).padStart(3, '0')}`;
-                contractors.push({ id: newId, name, address, phone, otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge });
+                contractors.push({ id: newId, name, address, phone, otBasis, otRate, otMode, otHourly: otMode === 'hour' ? otHourly : null, workHours, pfApplicable, esiApplicable, serviceCharge });
                 showToast("New contractor added!", "success");
             }
 
@@ -1594,6 +1615,7 @@
             document.getElementById('formContractorPhone').value = c.phone;
             document.getElementById('formContractorOtBasis').value = c.otBasis || 'BASIC';
             document.getElementById('formContractorOtRate').value = c.otRate || 1.5;
+            setOtMode(c.otMode || 'rate', c.otHourly);
             setWH(c.workHours || 8);
             document.getElementById('formContractorPf').checked = c.pfApplicable !== false;
             document.getElementById('formContractorEsi').checked = c.esiApplicable !== false;
@@ -2331,7 +2353,10 @@
 
             // OT hourly rate from daily wage, as per contractor rule
             const hourlyRate = otBasis === 'BASIC' ? fullBasic / hrsPerDay : dailyWage / hrsPerDay;
-            const otPerHour = Math.round(hourlyRate * otMultiplier + 1e-9);   // OT rate per hour rounded to rupee
+            const otMode = cnt.otMode === 'hour' ? 'hour' : 'rate';
+            const otPerHour = otMode === 'hour'
+                ? (Number(cnt.otHourly) || 0)                                 // fixed OT amount per hour (contractor setting)
+                : Math.round(hourlyRate * otMultiplier + 1e-9);              // OT rate per hour rounded to rupee
             const otAmount = payOtHours * otPerHour;
 
             // Statutory Deductions (PF on Basic, ESI on Gross)
@@ -2370,6 +2395,7 @@
                 otBasis: otBasis,
                 otRate: otMultiplier,
                 otPerHour: otPerHour,
+                otMode: otMode,
                 holidays: contractorHolidays,
                 holidayPay: holWage * contractorHolidays,
                 holWagePerDay: holWage,
