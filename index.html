@@ -879,11 +879,17 @@
           <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Employee Code *</label><input required id="formEmpCode" maxlength="20" placeholder="e.g. EMP001" oninput="this.value=this.value.toUpperCase().replace(/\s/g,'')" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 font-mono font-bold tracking-wider"></div>
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Employee Name *</label><input required id="formEmpName" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Unit *</label><select id="formEmpUnit" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"><option>Unit 1</option><option>Unit 2</option><option>Unit 3</option><option>Unit 4</option></select></div>
-          <div><label class="block text-xs font-semibold text-slate-600 mb-1">Contractor *</label><select required id="formEmpContractor" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div>
+          <div><label class="block text-xs font-semibold text-slate-600 mb-1">Contractor *</label><select required id="formEmpContractor" onchange="if(!document.getElementById('empEditId').value) setEmpOt(empOtDefaults(contractors.find(c => c.id === this.value)))" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Per Day Wage (₹) *</label><input required type="number" min="0" id="formEmpSalary" step="0.01" placeholder="e.g. 750" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Phone</label><input id="formEmpPhone" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Department *</label><select required id="formEmpDept" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Joining Date</label><input type="date" id="formEmpDate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
+          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Special Allowance per Day (₹)</label><input type="number" min="0" step="0.5" id="formEmpSpecial" placeholder="0 = none" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
+          <div class="col-span-2 bg-amber-50 border-2 border-amber-200 rounded-xl p-3 grid grid-cols-2 gap-3">
+            <p class="col-span-2 text-xs font-bold text-amber-800"><i class="fa-solid fa-clock mr-1"></i>OT Calculation <span class="font-normal text-amber-700">(starts as the contractor's setting)</span></p>
+            <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="empOtMode" value="rate" id="empOtModeRate" checked onchange="applyEmpOtMode()" class="accent-blue-600"> OT Rate</label><select id="formEmpOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
+            <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="empOtMode" value="hour" id="empOtModeHour" onchange="applyEmpOtMode()" class="accent-blue-600"> OT (Per Hour)</label><input type="number" min="0" step="0.5" id="formEmpOtHourly" placeholder="e.g. 100" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
+          </div>
           <div class="col-span-2 flex justify-end gap-2 pt-2 border-t border-slate-100">
             <button type="button" onclick="closeEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200">Cancel</button>
             <button type="submit" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-600 shadow">Save</button>
@@ -904,8 +910,7 @@
           <div class="col-span-2"><div><label class="block text-xs font-semibold text-slate-600 mb-1">Address</label><textarea id="formContractorAddress" rows="2" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></textarea></div></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Phone</label><input id="formContractorPhone" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Basis</label><select id="formContractorOtBasis" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="BASIC">Basic</option><option value="GROSS">Gross</option></select></div>
-          <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="otMode" value="rate" id="otModeRate" checked onchange="applyOtMode()" class="accent-blue-600"> OT Rate</label><select id="formContractorOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
-          <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="otMode" value="hour" id="otModeHour" onchange="applyOtMode()" class="accent-blue-600"> OT (Per Hour)</label><input type="number" min="0" step="0.5" id="formContractorOtHourly" placeholder="e.g. 100" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
+          <div><label class="block text-xs font-semibold text-slate-600 mb-1">OT Rate</label><select id="formContractorOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
           <div class="col-span-2 grid grid-cols-2 gap-3">
             <label class="flex items-center justify-between gap-2 bg-sky-50 border-2 border-sky-200 rounded-xl px-3 py-2.5 cursor-pointer">
               <span class="text-xs font-bold text-sky-800"><i class="fa-solid fa-shield-halved mr-1"></i>PF Applicable</span>
@@ -1471,7 +1476,7 @@
                         <p class="text-xs text-slate-600"><i class="fa-solid fa-phone text-slate-400 mr-1"></i>${c.phone || 'N/A'}</p>
                         <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
                             ${c.otMode === 'hour'
-                                ? `<div class="col-span-2">OT (Per Hour): <strong class="text-amber-700">₹${(Number(c.otHourly) || 0).toLocaleString('en-IN')}</strong></div>`
+                                ? `<div class="col-span-2">Default OT (Per Hour): <strong class="text-amber-700">₹${(Number(c.otHourly) || 0).toLocaleString('en-IN')}</strong></div>`
                                 : `<div>OT Basis: <strong class="text-amber-700">${c.otBasis || 'BASIC'}</strong></div>
                             <div>OT Rate: <strong class="text-amber-700">${c.otRate || 1.5}x</strong></div>`}
                             <div class="col-span-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold"><i class="fa-solid fa-clock"></i> Working Hours: ${c.workHours || 8} Hrs / Day</span></div>
@@ -1516,20 +1521,6 @@
             });
         }
 
-        // OT: either "OT Rate" (multiplier on Basic/Gross hourly wage) or a fixed "OT (Per Hour)" amount
-        function applyOtMode() {
-            const hour = document.getElementById('otModeHour').checked;
-            document.getElementById('formContractorOtBasis').disabled = hour;
-            document.getElementById('formContractorOtRate').disabled = hour;
-            document.getElementById('formContractorOtHourly').disabled = !hour;
-            if (hour) document.getElementById('formContractorOtHourly').focus();
-        }
-        function setOtMode(mode, hourly) {
-            document.getElementById(mode === 'hour' ? 'otModeHour' : 'otModeRate').checked = true;
-            document.getElementById('formContractorOtHourly').value = hourly ?? '';
-            applyOtMode();
-        }
-
         function setContractorLock(vendor) {
             ['formContractorName', 'formContractorAddress', 'formContractorPhone'].forEach(id => {
                 const el = document.getElementById(id);
@@ -1551,7 +1542,6 @@
             document.getElementById('contractorEditId').value = "";
             document.getElementById('contractorForm').reset();
             setWH(8);
-            setOtMode('rate', '');
             document.getElementById('formContractorPf').checked = true;
             document.getElementById('formContractorEsi').checked = true;
             document.getElementById('formContractorService').value = 30;
@@ -1570,9 +1560,6 @@
             const phone = document.getElementById('formContractorPhone').value;
             const otBasis = document.getElementById('formContractorOtBasis').value;
             const otRate = parseFloat(document.getElementById('formContractorOtRate').value) || 1.5;
-            const otMode = document.getElementById('otModeHour').checked ? 'hour' : 'rate';
-            const otHourly = parseFloat(document.getElementById('formContractorOtHourly').value);
-            if (otMode === 'hour' && !(otHourly > 0)) { showToast('Enter the OT (Per Hour) amount.', 'danger'); document.getElementById('formContractorOtHourly').focus(); return; }
             const workHours = parseFloat(document.getElementById('formContractorWorkHours').value) || 8;
             const pfApplicable = document.getElementById('formContractorPf').checked;
             const esiApplicable = document.getElementById('formContractorEsi').checked;
@@ -1583,7 +1570,7 @@
                 const idx = contractors.findIndex(c => c.id === editId);
                 if (idx !== -1) {
                     const locked = document.getElementById('formContractorName').readOnly;
-                    contractors[idx] = { ...contractors[idx], otBasis, otRate, otMode, otHourly: otMode === 'hour' ? otHourly : (contractors[idx].otHourly ?? null), workHours, pfApplicable, esiApplicable, serviceCharge,
+                    contractors[idx] = { ...contractors[idx], otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge,
                         phone: locked ? contractors[idx].phone : phone,
                         name: locked ? contractors[idx].name : name, address: locked ? contractors[idx].address : address };
                     employees.forEach(e => { if (e.contractorId === editId) e.contractor = contractors[idx].name; });
@@ -1592,7 +1579,7 @@
                 }
             } else {
                 const newId = `CNT${String(contractors.length + 1).padStart(3, '0')}`;
-                contractors.push({ id: newId, name, address, phone, otBasis, otRate, otMode, otHourly: otMode === 'hour' ? otHourly : null, workHours, pfApplicable, esiApplicable, serviceCharge });
+                contractors.push({ id: newId, name, address, phone, otBasis, otRate, workHours, pfApplicable, esiApplicable, serviceCharge });
                 showToast("New contractor added!", "success");
             }
 
@@ -1615,7 +1602,6 @@
             document.getElementById('formContractorPhone').value = c.phone;
             document.getElementById('formContractorOtBasis').value = c.otBasis || 'BASIC';
             document.getElementById('formContractorOtRate').value = c.otRate || 1.5;
-            setOtMode(c.otMode || 'rate', c.otHourly);
             setWH(c.workHours || 8);
             document.getElementById('formContractorPf').checked = c.pfApplicable !== false;
             document.getElementById('formContractorEsi').checked = c.esiApplicable !== false;
@@ -1992,6 +1978,25 @@
             renderEmployeeList(filtered);
         }
 
+        // ===== Employee OT setting (falls back to the contractor's old setting) =====
+        function empOtDefaults(cnt, emp) {
+            cnt = cnt || {};
+            if (emp && emp.otMode) return { mode: emp.otMode, rate: emp.otRate ?? cnt.otRate ?? 1.5, hourly: emp.otHourly };
+            return { mode: cnt.otMode === 'hour' ? 'hour' : 'rate', rate: cnt.otRate || 1.5, hourly: cnt.otHourly };
+        }
+        function setEmpOt(o) {
+            document.getElementById(o.mode === 'hour' ? 'empOtModeHour' : 'empOtModeRate').checked = true;
+            document.getElementById('formEmpOtRate').value = String(o.rate || 1.5);
+            document.getElementById('formEmpOtHourly').value = o.hourly ?? '';
+            applyEmpOtMode(true);
+        }
+        function applyEmpOtMode(silent) {
+            const hour = document.getElementById('empOtModeHour').checked;
+            document.getElementById('formEmpOtRate').disabled = hour;
+            document.getElementById('formEmpOtHourly').disabled = !hour;
+            if (hour && !silent) document.getElementById('formEmpOtHourly').focus();
+        }
+
         function openEmployeeModal(isEdit = false) {
             document.getElementById('empModal').classList.remove('hidden');
             if (!isEdit) {
@@ -2001,6 +2006,8 @@
                 document.getElementById('empForm').reset();
                 let n = employees.length + 1; while (employees.some(x => x.id === `EMP${String(n).padStart(3, '0')}`)) n++;
                 document.getElementById('formEmpCode').value = `EMP${String(n).padStart(3, '0')}`;
+                document.getElementById('formEmpSpecial').value = '';
+                setEmpOt(empOtDefaults(contractors.find(c => c.id === document.getElementById('formEmpContractor').value)));
             }
         }
 
@@ -2020,11 +2027,17 @@
             const salary = parseFloat(document.getElementById('formEmpSalary').value);
             const phone = document.getElementById('formEmpPhone').value || '9876543210';
             const joined = document.getElementById('formEmpDate').value || new Date().toISOString().split('T')[0];
+            const specialAllowance = Math.max(0, parseFloat(document.getElementById('formEmpSpecial').value) || 0);
+            const otMode = document.getElementById('empOtModeHour').checked ? 'hour' : 'rate';
+            const otRate = parseFloat(document.getElementById('formEmpOtRate').value) || 1.5;
+            const otHourly = parseFloat(document.getElementById('formEmpOtHourly').value);
+            if (otMode === 'hour' && !(otHourly > 0)) { document.getElementById('formEmpOtHourly').focus(); return showToast('Enter the OT (Per Hour) amount.', 'danger'); }
+            const otFields = { otMode, otRate, otHourly: otMode === 'hour' ? otHourly : null, specialAllowance };
 
             if (editId) {
                 const index = employees.findIndex(emp => emp.id === editId);
                 if (index !== -1) {
-                    employees[index] = { ...employees[index], id: code, name, unit, dept, contractorId, contractor: cnt ? cnt.name : '', salary, phone, joined };
+                    employees[index] = { ...employees[index], id: code, name, unit, dept, contractorId, contractor: cnt ? cnt.name : '', salary, phone, joined, ...otFields };
                     if (code !== editId) {   // code changed: update linked advances & saved reports
                         advances.forEach(a => { if (a.empId === editId) a.empId = code; });
                         saveAdvancesToStorage();
@@ -2046,7 +2059,8 @@
                     joined,
                     lopDays: 0,
                     lateMinutes: 0,
-                    otHours: 0
+                    otHours: 0,
+                    ...otFields
                 });
                 showToast("New employee added to roster!", "success");
             }
@@ -2076,6 +2090,8 @@
             document.getElementById('formEmpSalary').value = emp.salary;
             document.getElementById('formEmpPhone').value = emp.phone;
             document.getElementById('formEmpDate').value = emp.joined;
+            document.getElementById('formEmpSpecial').value = emp.specialAllowance || '';
+            setEmpOt(empOtDefaults(contractors.find(c => c.id === emp.contractorId), emp));
 
             openEmployeeModal(true);
         }
@@ -2319,7 +2335,8 @@
             const cnt = contractors.find(c => c.id === emp.contractorId) || { paidHolidays: 0, otBasis: 'BASIC', otRate: 1.5 };
             const contractorHolidays = Math.max(0, Number(emp.paidHol) || 0);   // paid holidays entered per employee in Attendance
             const otBasis = cnt.otBasis || 'BASIC'; // 'BASIC' or 'GROSS'
-            const otMultiplier = cnt.otRate || 1.5;   // 1.0 or 1.5
+            const ot = empOtDefaults(cnt, emp);       // employee's own OT setting, else contractor's
+            const otMultiplier = ot.rate || 1.5;      // 1x / 1.5x / 2x
 
             // Present Days
             const presentDays = getWorkedDays(emp, metrics) + contractorHolidays;   // entered present days + paid holidays
@@ -2339,7 +2356,10 @@
             const holHra = holWage - holBasic;
             const actualBasic = fullBasic * workedDays + holBasic * contractorHolidays;
             const actualHra = fullHra * workedDays + holHra * contractorHolidays;
-            const grossEarned = actualBasic + actualHra;
+            // Special allowance: per-day amount x days actually present (paid holidays not included)
+            const specialPerDay = Math.max(0, Number(emp.specialAllowance) || 0);
+            const specialAllowance = specialPerDay * workedDays;
+            const grossEarned = actualBasic + actualHra + specialAllowance;
 
             // Late rule (monthly): 30 min grace, then late is set off against OT hour-for-hour,
             // the balance late minutes are deducted at (per-day wage / work hours) / 60 per minute.
@@ -2353,9 +2373,9 @@
 
             // OT hourly rate from daily wage, as per contractor rule
             const hourlyRate = otBasis === 'BASIC' ? fullBasic / hrsPerDay : dailyWage / hrsPerDay;
-            const otMode = cnt.otMode === 'hour' ? 'hour' : 'rate';
+            const otMode = ot.mode === 'hour' ? 'hour' : 'rate';
             const otPerHour = otMode === 'hour'
-                ? (Number(cnt.otHourly) || 0)                                 // fixed OT amount per hour (contractor setting)
+                ? (Number(ot.hourly) || 0)                                    // fixed OT amount per hour (employee setting)
                 : Math.round(hourlyRate * otMultiplier + 1e-9);              // OT rate per hour rounded to rupee
             const otAmount = payOtHours * otPerHour;
 
@@ -2370,7 +2390,7 @@
             const canteen = canteenTokens * canteenRate;
             // Round off each amount to rupee (0.50 and above -> next rupee), then total from rounded values
             const R = x => Math.round((x || 0) + 1e-9);
-            const rBasic = R(actualBasic), rHra = R(actualHra), rGross = rBasic + rHra, rOt = R(otAmount);
+            const rBasic = R(actualBasic), rHra = R(actualHra), rSpecial = R(specialAllowance), rGross = rBasic + rHra + rSpecial, rOt = R(otAmount);
             const rPf = R(pf), rEsi = R(esi), rTax = R(tax), rLate = R(lateDeduction), rCanteen = R(canteen);
             // Advance: deducted only if net pay before advance covers it (else auto-skipped), or skipped by company
             const netBeforeAdvance = rGross + rOt - (rPf + rEsi + rTax + rLate + rCanteen);
@@ -2386,6 +2406,8 @@
                 basic: rBasic,
                 hra: rHra,
                 grossPay: rGross,
+                specialAllowance: rSpecial,
+                specialPerDay: specialPerDay,
                 otHours: Math.round(payOtHours * 100) / 100,
                 otHoursEntered: otHours,
                 lateMinutes: lateMins,
@@ -2449,7 +2471,7 @@
                         </td>
                         <td class="p-3 font-bold text-teal-700">₹${calc.basic.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-indigo-700">₹${calc.hra.toLocaleString('en-IN')}</td>
-                        <td class="p-3 font-bold text-emerald-600">₹${calc.grossPay.toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-bold text-emerald-600">₹${calc.grossPay.toLocaleString('en-IN')}${calc.specialAllowance ? `<p class="text-[9px] font-semibold text-fuchsia-600">incl. Special ₹${calc.specialAllowance.toLocaleString('en-IN')}</p>` : ''}</td>
                         <td class="p-3 font-bold text-amber-700">+ ₹${calc.otAmount.toLocaleString('en-IN')}</td>
                         <td class="p-3 text-amber-600 font-semibold">₹${calc.lateDeduction.toLocaleString('en-IN')}${calc.lateMinutes ? `<p class="text-[9px] text-slate-500 font-normal whitespace-nowrap">Late ${fmtHM(calc.lateMinutes)}<br>Grace ${fmtHM(calc.lateGrace)} · OT adj ${fmtHM(calc.lateOffsetMins)}<br>Deducted ${fmtHM(calc.lateDeductMins)}</p>` : ''}</td>
                         <td class="p-3 text-sky-700 font-semibold">₹${calc.pf.toLocaleString('en-IN')}</td>
@@ -2806,7 +2828,7 @@
                     ${r.lateMinutes ? info('Late', fmtHM(r.lateMinutes)) + info('Grace / OT adj.', fmtHM(r.lateGrace) + ' / ' + fmtHM(r.lateOffsetMins)) + info('Late Deducted', fmtHM(r.lateDeductMins)) : ''}
                 </div>
                 <div style="display:flex;gap:8px">
-                    ${box('EARNINGS', [line('Basic', r.basic), line('HRA', r.hra), line('Overtime', r.otAmount)], 'Total Earnings', (r.grossPay || 0) + (r.otAmount || 0))}
+                    ${box('EARNINGS', [line('Basic', r.basic), line('HRA', r.hra)].concat(r.specialAllowance ? [line('Special Allowance', r.specialAllowance)] : [], [line('Overtime', r.otAmount)]), 'Total Earnings', (r.grossPay || 0) + (r.otAmount || 0))}
                     ${box('DEDUCTIONS', ded, 'Total Deductions', r.totalDeductions)}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;border:1.5px solid ${navy};margin-top:6px;padding:4px 8px">
@@ -2974,7 +2996,7 @@
         }
         function exportReportCSV() {
             const rows = getReportRows(); if (!rows.length) return showToast('No data to export', 'danger');
-            const cols = ['month','id','name','unit','contractor','presentDays','lop','basic','hra','grossPay','otHours','otAmount','pf','esi','tax','lateDeduction','advanceEMI','canteenTokens','canteen','totalDeductions','netPay'];
+            const cols = ['month','id','name','unit','contractor','presentDays','lop','basic','hra','specialAllowance','grossPay','otHours','otAmount','pf','esi','tax','lateDeduction','advanceEMI','canteenTokens','canteen','totalDeductions','netPay'];
             const head = ['Month','Emp ID','Name','Unit','Contractor','Paid Days','LOP','Basic','HRA','Gross','OT Hours','OT Amount','PF','ESI','Tax','Late Cut','Advance','Canteen Tokens','Canteen','Total Deductions','Net Pay'];
             const csv = [head.join(',')].concat(rows.map(r => cols.map(c => `"${String(r[c] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n');
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
