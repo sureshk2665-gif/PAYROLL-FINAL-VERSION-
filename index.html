@@ -99,6 +99,8 @@
         main table tbody td:nth-child(13){background-color:color-mix(in srgb,#7c3aed 6%,#fff)}
         main table thead th:nth-child(14){background:#0f766e !important}
         main table tbody td:nth-child(14){background-color:color-mix(in srgb,#0f766e 6%,#fff)}
+        main table thead th:nth-child(15){background:#475569 !important}
+        main table tbody td:nth-child(15){background-color:color-mix(in srgb,#475569 6%,#fff)}
         main table tbody tr:nth-child(even) td{filter:brightness(.985)}
         /* Frozen layout: table scrolls inside its own box (header row + first column stay fixed, side scrollbar always on screen) */
         main .overflow-x-auto{overflow:auto !important;overscroll-behavior:contain}
@@ -531,6 +533,7 @@
                                         <th class="p-3 text-indigo-300">HRA (40%)</th>
                                         <th class="p-3 text-emerald-400 font-bold">Gross Earned</th>
                                         <th class="p-3 text-amber-300 font-bold">OT Payout (+)</th>
+                                        <th class="p-3 text-fuchsia-300 font-bold">Conveyance (+)</th>
                                         <th class="p-3 text-amber-600">Late Cut (-)</th>
                                         <th class="p-3 text-sky-300">PF (-)</th>
                                         <th class="p-3 text-cyan-300">ESI (-)</th>
@@ -884,7 +887,7 @@
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Phone</label><input id="formEmpPhone" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Department *</label><select required id="formEmpDept" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></select></div>
           <div><label class="block text-xs font-semibold text-slate-600 mb-1">Joining Date</label><input type="date" id="formEmpDate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500"></div>
-          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Special Allowance per Day (₹)</label><input type="number" min="0" step="0.5" id="formEmpSpecial" placeholder="0 = none" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
+          <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Conveyance Allowance per Day (₹)</label><input type="number" min="0" step="0.5" id="formEmpSpecial" placeholder="0 = none" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"></div>
           <div class="col-span-2 bg-amber-50 border-2 border-amber-200 rounded-xl p-3 grid grid-cols-2 gap-3">
             <p class="col-span-2 text-xs font-bold text-amber-800"><i class="fa-solid fa-clock mr-1"></i>OT Calculation <span class="font-normal text-amber-700">(starts as the contractor's setting)</span></p>
             <div><label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1 cursor-pointer"><input type="radio" name="empOtMode" value="rate" id="empOtModeRate" checked onchange="applyEmpOtMode()" class="accent-blue-600"> OT Rate</label><select id="formEmpOtRate" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-40 disabled:cursor-not-allowed"><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
@@ -2356,10 +2359,11 @@
             const holHra = holWage - holBasic;
             const actualBasic = fullBasic * workedDays + holBasic * contractorHolidays;
             const actualHra = fullHra * workedDays + holHra * contractorHolidays;
-            // Special allowance: per-day amount x days actually present (paid holidays not included)
+            // Conveyance allowance: per-day amount x days actually present (paid holidays not included).
+            // Kept separate from Gross: no PF, no ESI on it; added to net pay.
             const specialPerDay = Math.max(0, Number(emp.specialAllowance) || 0);
             const specialAllowance = specialPerDay * workedDays;
-            const grossEarned = actualBasic + actualHra + specialAllowance;
+            const grossEarned = actualBasic + actualHra;
 
             // Late rule (monthly): 30 min grace, then late is set off against OT hour-for-hour,
             // the balance late minutes are deducted at (per-day wage / work hours) / 60 per minute.
@@ -2390,14 +2394,14 @@
             const canteen = canteenTokens * canteenRate;
             // Round off each amount to rupee (0.50 and above -> next rupee), then total from rounded values
             const R = x => Math.round((x || 0) + 1e-9);
-            const rBasic = R(actualBasic), rHra = R(actualHra), rSpecial = R(specialAllowance), rGross = rBasic + rHra + rSpecial, rOt = R(otAmount);
+            const rBasic = R(actualBasic), rHra = R(actualHra), rSpecial = R(specialAllowance), rGross = rBasic + rHra, rOt = R(otAmount);
             const rPf = R(pf), rEsi = R(esi), rTax = R(tax), rLate = R(lateDeduction), rCanteen = R(canteen);
             // Advance: deducted only if net pay before advance covers it (else auto-skipped), or skipped by company
-            const netBeforeAdvance = rGross + rOt - (rPf + rEsi + rTax + rLate + rCanteen);
+            const netBeforeAdvance = rGross + rOt + rSpecial - (rPf + rEsi + rTax + rLate + rCanteen);
             const adv = opts.noAdvance ? { total: 0, items: {} } : advanceForMonth(emp, settings.selectedMonthYear, netBeforeAdvance);
             const rAdv = adv.total;
             const totalDeductions = rPf + rEsi + rTax + rLate + rAdv + rCanteen;
-            const netPay = Math.max(0, rGross + rOt - totalDeductions);
+            const netPay = Math.max(0, rGross + rOt + rSpecial - totalDeductions);
 
             return {
                 presentDays: Math.round(presentDays * 10) / 10,
@@ -2406,7 +2410,7 @@
                 basic: rBasic,
                 hra: rHra,
                 grossPay: rGross,
-                specialAllowance: rSpecial,
+                specialAllowance: rSpecial,       // conveyance allowance amount (field name kept for saved data)
                 specialPerDay: specialPerDay,
                 otHours: Math.round(payOtHours * 100) / 100,
                 otHoursEntered: otHours,
@@ -2445,15 +2449,15 @@
             tbody.innerHTML = '';
 
             if (employees.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-slate-400">No employees to process payroll. Add employees first.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-slate-400">No employees to process payroll. Add employees first.</td></tr>`;
                 return;
             }
 
             const puf = (document.getElementById('payUnitFilter') || {}).value || 'ALL';
             const pcf = (document.getElementById('payCntFilter') || {}).value || 'ALL';
             const plist = employees.filter(e => (puf === 'ALL' || e.unit === puf) && (pcf === 'ALL' || e.contractorId === pcf) && isEmpActive(e));
-            if (!plist.length) { tbody.innerHTML = `<tr><td colspan="14" class="p-6 text-center text-slate-400">No employees for this Unit / Contractor.</td></tr>`; return; }
-            const T = { basic: 0, hra: 0, grossPay: 0, otAmount: 0, lateDeduction: 0, pf: 0, esi: 0, advanceEMI: 0, canteen: 0, totalDeductions: 0, netPay: 0 };
+            if (!plist.length) { tbody.innerHTML = `<tr><td colspan="15" class="p-6 text-center text-slate-400">No employees for this Unit / Contractor.</td></tr>`; return; }
+            const T = { basic: 0, hra: 0, grossPay: 0, otAmount: 0, specialAllowance: 0, lateDeduction: 0, pf: 0, esi: 0, advanceEMI: 0, canteen: 0, totalDeductions: 0, netPay: 0 };
             plist.forEach(emp => {
                 const calc = calculateSalaryComponents(emp);
                 Object.keys(T).forEach(k => T[k] += calc[k] || 0);
@@ -2471,8 +2475,9 @@
                         </td>
                         <td class="p-3 font-bold text-teal-700">₹${calc.basic.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-indigo-700">₹${calc.hra.toLocaleString('en-IN')}</td>
-                        <td class="p-3 font-bold text-emerald-600">₹${calc.grossPay.toLocaleString('en-IN')}${calc.specialAllowance ? `<p class="text-[9px] font-semibold text-fuchsia-600">incl. Special ₹${calc.specialAllowance.toLocaleString('en-IN')}</p>` : ''}</td>
+                        <td class="p-3 font-bold text-emerald-600">₹${calc.grossPay.toLocaleString('en-IN')}</td>
                         <td class="p-3 font-bold text-amber-700">+ ₹${calc.otAmount.toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-bold text-fuchsia-700">${calc.specialAllowance ? `+ ₹${calc.specialAllowance.toLocaleString('en-IN')}<p class="text-[9px] font-normal text-slate-500">₹${calc.specialPerDay} × ${calc.presentDays - calc.holidays} days</p>` : '<span class="text-slate-300">—</span>'}</td>
                         <td class="p-3 text-amber-600 font-semibold">₹${calc.lateDeduction.toLocaleString('en-IN')}${calc.lateMinutes ? `<p class="text-[9px] text-slate-500 font-normal whitespace-nowrap">Late ${fmtHM(calc.lateMinutes)}<br>Grace ${fmtHM(calc.lateGrace)} · OT adj ${fmtHM(calc.lateOffsetMins)}<br>Deducted ${fmtHM(calc.lateDeductMins)}</p>` : ''}</td>
                         <td class="p-3 text-sky-700 font-semibold">₹${calc.pf.toLocaleString('en-IN')}</td>
                         <td class="p-3 text-cyan-700 font-semibold">₹${calc.esi.toLocaleString('en-IN')}</td>
@@ -2491,7 +2496,7 @@
             const m = v => '₹' + v.toLocaleString('en-IN');
             tbody.innerHTML += `<tr class="font-extrabold" style="background:#f1f5f9">
                 <td class="p-3">TOTAL (${plist.length})</td><td class="p-3">${puf === 'ALL' ? 'All Units' : puf}</td>
-                <td class="p-3">${m(T.basic)}</td><td class="p-3">${m(T.hra)}</td><td class="p-3">${m(T.grossPay)}</td><td class="p-3">${m(T.otAmount)}</td>
+                <td class="p-3">${m(T.basic)}</td><td class="p-3">${m(T.hra)}</td><td class="p-3">${m(T.grossPay)}</td><td class="p-3">${m(T.otAmount)}</td><td class="p-3">${m(T.specialAllowance)}</td>
                 <td class="p-3">${m(T.lateDeduction)}</td><td class="p-3">${m(T.pf)}</td><td class="p-3">${m(T.esi)}</td><td class="p-3">${m(T.advanceEMI)}</td>
                 <td class="p-3">${m(T.canteen)}</td><td class="p-3">${m(T.totalDeductions)}</td><td class="p-3 text-teal-700">${m(T.netPay)}</td><td></td></tr>`;
         }
@@ -2828,7 +2833,7 @@
                     ${r.lateMinutes ? info('Late', fmtHM(r.lateMinutes)) + info('Grace / OT adj.', fmtHM(r.lateGrace) + ' / ' + fmtHM(r.lateOffsetMins)) + info('Late Deducted', fmtHM(r.lateDeductMins)) : ''}
                 </div>
                 <div style="display:flex;gap:8px">
-                    ${box('EARNINGS', [line('Basic', r.basic), line('HRA', r.hra)].concat(r.specialAllowance ? [line('Special Allowance', r.specialAllowance)] : [], [line('Overtime', r.otAmount)]), 'Total Earnings', (r.grossPay || 0) + (r.otAmount || 0))}
+                    ${box('EARNINGS', [line('Basic', r.basic), line('HRA', r.hra), line('Overtime', r.otAmount)].concat(r.specialAllowance ? [line('Conveyance Allowance', r.specialAllowance)] : []), 'Total Earnings', (r.grossPay || 0) + (r.otAmount || 0) + (r.specialAllowance || 0))}
                     ${box('DEDUCTIONS', ded, 'Total Deductions', r.totalDeductions)}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;border:1.5px solid ${navy};margin-top:6px;padding:4px 8px">
@@ -2996,8 +3001,8 @@
         }
         function exportReportCSV() {
             const rows = getReportRows(); if (!rows.length) return showToast('No data to export', 'danger');
-            const cols = ['month','id','name','unit','contractor','presentDays','lop','basic','hra','specialAllowance','grossPay','otHours','otAmount','pf','esi','tax','lateDeduction','advanceEMI','canteenTokens','canteen','totalDeductions','netPay'];
-            const head = ['Month','Emp ID','Name','Unit','Contractor','Paid Days','LOP','Basic','HRA','Gross','OT Hours','OT Amount','PF','ESI','Tax','Late Cut','Advance','Canteen Tokens','Canteen','Total Deductions','Net Pay'];
+            const cols = ['month','id','name','unit','contractor','presentDays','lop','basic','hra','grossPay','otHours','otAmount','specialAllowance','pf','esi','tax','lateDeduction','advanceEMI','canteenTokens','canteen','totalDeductions','netPay'];
+            const head = ['Month','Emp ID','Name','Unit','Contractor','Paid Days','LOP','Basic','HRA','Gross','OT Hours','OT Amount','Conveyance Allowance','PF','ESI','Tax','Late Cut','Advance','Canteen Tokens','Canteen','Total Deductions','Net Pay'];
             const csv = [head.join(',')].concat(rows.map(r => cols.map(c => `"${String(r[c] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n');
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
             a.download = `payroll_report_${reportType}_${document.getElementById('rptMonth').value}.csv`; a.click();
